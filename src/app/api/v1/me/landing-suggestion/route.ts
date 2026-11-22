@@ -11,7 +11,9 @@ export const GET = route(async (req: Request) => {
   const [prefs, { data }] = await Promise.all([
     loadPreferences(ctx.db, user.id),
     ctx.service().from('analytics_events').select('screen').eq('user_id', user.id).eq('name', 'screen.view')
-      .in('screen', ['explore', 'tribe', 'trips']).gte('ts', since).limit(2000),
+      .in('screen', ['explore', 'tribe', 'trips']).gte('ts', since)
+      // The tab the app opens on isn't a choice: apps mark that view auto.
+      .or('props->>auto.is.null,props->>auto.neq.true').limit(2000),
   ])
   const visits = { explore: 0, tribe: 0, trips: 0 }
   for (const r of data ?? []) visits[r.screen as keyof typeof visits]++

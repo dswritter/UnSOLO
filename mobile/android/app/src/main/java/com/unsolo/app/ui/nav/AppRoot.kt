@@ -112,6 +112,14 @@ class AppNav(
         }.onFailure { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
     }
 
+    /** An outside link from a profile (Instagram, website, maps, phone): http(s) or tel only, opened by the system. */
+    fun openUrl(url: String) {
+        val u = url.trim().let { if (it.startsWith("http://") || it.startsWith("https://") || it.startsWith("tel:")) it else "https://$it" }
+        val uri = Uri.parse(u)
+        if (uri.scheme !in setOf("https", "http", "tel")) return
+        runCatching { context.startActivity(Intent(if (uri.scheme == "tel") Intent.ACTION_DIAL else Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    }
+
     /** Supabase OAuth authorize page (Google fallback). Only the configured Supabase host, over https. */
     fun openAuthUrl(url: String) {
         val uri = Uri.parse(url)
@@ -151,11 +159,11 @@ class MainViewModel(private val g: AppGraph) : ViewModel() {
     }
 
     /** On launch: GET /me/landing-suggestion (or the local rule for guests/offline) → maybe prompt. */
-    fun checkLanding() {
-        if (landingChecked) return
+    fun checkLanding(delayMs: Long = 1500) {
+        if (landingChecked || landingPrompt.value != null) return
         landingChecked = true
         viewModelScope.launch {
-            kotlinx.coroutines.delay(1500) // let the first screen settle
+            kotlinx.coroutines.delay(delayMs) // let the screen settle
             val prefs = g.settings.current()
             val r = g.account.landingSuggestion()
             val tab = LandingPolicy.decide(
@@ -179,10 +187,19 @@ class MainViewModel(private val g: AppGraph) : ViewModel() {
 
     fun dismissLanding() = viewModelScope.launch { landingPrompt.value = null; g.account.dismissLanding() }
 
+    private var firstRoute = true
+
+    /**
+     * The tab the app opens on doesn't count as a visit (it isn't a choice); every tab you switch to
+     * does. Switching to a tab may then offer to start there next time.
+     */
     fun recordTab(route: String?) = viewModelScope.launch {
+        val auto = firstRoute
+        firstRoute = false
         val tab = when (route) { Routes.EXPLORE -> Tab.EXPLORE; Routes.TRIBE -> Tab.TRIBE; Routes.TRIPS -> Tab.TRIPS; else -> null }
-        if (tab != null) g.settings.recordVisit(tab)
-        screenName(route)?.let { g.analytics.screen(it) }
+        if (tab != null && !auto) g.settings.recordVisit(tab)
+        screenName(route)?.let { g.analytics.track("screen.view", it, if (auto) mapOf("auto" to true) else emptyMap()) }
+        if (tab != null && !auto && tab != g.settings.current().landingTab) { landingChecked = false; checkLanding(delayMs = 1200) }
     }
 
     private fun screenName(route: String?) = when (route) {

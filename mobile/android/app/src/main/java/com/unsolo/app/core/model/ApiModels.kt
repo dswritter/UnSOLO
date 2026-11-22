@@ -31,6 +31,13 @@ data class UserLite(
     val homeCity: String? = null,
     val followers: Int? = null,
     val following: Int? = null,
+    val location: String? = null,
+    val statusText: String? = null,
+    val instagramUrl: String? = null,
+    val websiteUrl: String? = null,
+    val travelStyle: List<String> = emptyList(),
+    val isVerified: Boolean = false,
+    val joinedAt: String? = null,
     // GET /me
     val email: String? = null,
     val phone: String? = null,
@@ -575,7 +582,65 @@ data class ProfileResponse(
     val posts: List<Post> = emptyList(),
     val openPlan: Post? = null,
     val isFollowing: Boolean = false,
+    val followsYou: Boolean = false,
+    val stats: ProfileStats? = null,
+    val phone: ProfilePhone? = null,
+    val travel: ProfileTravel? = null,
+    val badges: ProfileBadges? = null,
+    val listings: List<TripLite> = emptyList(),
+    val reviewsWritten: List<ProfileReview> = emptyList(),
+    val host: ProfileHost? = null,
+    val connections: ProfileConnections? = null,
 )
+
+@Serializable
+data class ProfileTier(val name: String = "Newcomer", val next: String? = null, val pointsToNext: Int = 0, val percent: Int = 0)
+
+@Serializable
+data class ProfileStats(val trips: Int? = null, val states: Int? = null, val reviews: Int = 0, val listings: Int = 0, val points: Int = 0, val rank: Int? = null, val tier: ProfileTier = ProfileTier())
+
+/** [number] only when they made it public or approved your request; otherwise [masked]. */
+@Serializable
+data class ProfilePhone(val number: String? = null, val masked: String? = null, val request: String? = null, val canRequest: Boolean = false)
+
+@Serializable
+data class ProfileTripRef(val title: String, val slug: String? = null, val date: String? = null)
+
+@Serializable
+data class ProfileTravel(val states: List<String>? = null, val trips: List<ProfileTripRef> = emptyList(), val mutualPlaces: List<String> = emptyList())
+
+@Serializable
+data class Badge(val key: String, val name: String, val description: String = "", val icon: String = "")
+
+@Serializable
+data class ProfileBadges(val earned: List<Badge> = emptyList(), val next: List<Badge> = emptyList(), val total: Int = 0)
+
+@Serializable
+data class ProfileReview(val id: String, val rating: Int = 0, val body: String? = null, val createdAt: String = "", val subject: String? = null, val slug: String? = null, val reviewer: UserLite? = null)
+
+@Serializable
+data class ProfileHost(val travellerCount: Int = 0, val travellers: List<UserLite> = emptyList(), val reviews: List<ProfileReview> = emptyList(), val reviewTotal: Int = 0, val reviewAverage: Double? = null, val reachedOut: List<UserLite> = emptyList())
+
+@Serializable
+data class SharedRef(val title: String, val path: String, val kind: String = "trip", val hostedByThem: Boolean = false)
+
+@Serializable
+data class RoomRef(val id: String, val name: String)
+
+@Serializable
+data class ProfileConnections(val mutual: List<UserLite> = emptyList(), val mutualCount: Int = 0, val rooms: List<RoomRef> = emptyList(), val shared: List<SharedRef> = emptyList())
+
+@Serializable
+data class FollowResponse(val isFollowing: Boolean, val followers: Int = 0, val following: Int = 0)
+
+@Serializable
+data class PhoneRequestItem(val id: String, val createdAt: String = "", val user: UserLite)
+
+@Serializable
+data class PhoneRequestsResponse(val items: List<PhoneRequestItem> = emptyList())
+
+@Serializable
+data class PhoneRequestDecision(val approve: Boolean)
 
 @Immutable
 @Serializable

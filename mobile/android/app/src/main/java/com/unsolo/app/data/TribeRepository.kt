@@ -488,6 +488,29 @@ class TribeRepository(
         return r
     }
 
+    /** Follow / unfollow; the cached profile updates at once and takes the server's counts. */
+    suspend fun setFollow(username: String, follow: Boolean): ApiResult<FollowResponse> {
+        val key = "user:$username"
+        db.cache().getAs(key, ProfileResponse.serializer())?.let { p ->
+            db.cache().putAs(key, ProfileResponse.serializer(), p.copy(isFollowing = follow, user = p.user.copy(followers = ((p.user.followers ?: 0) + if (follow) 1 else -1).coerceAtLeast(0))))
+        }
+        val r = apiCall { if (follow) api.follow(username) else api.unfollow(username) }
+        db.cache().getAs(key, ProfileResponse.serializer())?.let { p ->
+            if (r is ApiResult.Ok) db.cache().putAs(key, ProfileResponse.serializer(), p.copy(isFollowing = r.value.isFollowing, user = p.user.copy(followers = r.value.followers, following = r.value.following)))
+            else refreshProfile(username)
+        }
+        return r
+    }
+
+    suspend fun requestPhone(username: String): ApiResult<Unit> {
+        val r = apiUnit { api.requestPhone(username) }
+        if (r is ApiResult.Ok) refreshProfile(username)
+        return r
+    }
+
+    suspend fun phoneRequests() = apiCall { api.phoneRequests() }
+    suspend fun decidePhoneRequest(id: String, approve: Boolean) = apiUnit { api.decidePhoneRequest(id, PhoneRequestDecision(approve)) }
+
     suspend fun openDirectChat(userId: String) = apiCall { api.directChat(DirectChatRequest(userId)) }
 
     private fun requireSignedIn(): Boolean {

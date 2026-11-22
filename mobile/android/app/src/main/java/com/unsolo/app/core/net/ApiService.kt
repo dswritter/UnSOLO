@@ -81,6 +81,11 @@ interface ApiService {
     @POST("offers/{id}/accept") suspend fun acceptOffer(@Path("id") id: String, @Body body: AcceptOfferRequest): AcceptOfferResponse
     @POST("offers/{id}/decline") suspend fun declineOffer(@Path("id") id: String): Response<Unit>
     @GET("users/{username}") suspend fun user(@Path("username") username: String): ProfileResponse
+    @PUT("users/{username}/follow") suspend fun follow(@Path("username") username: String): FollowResponse
+    @DELETE("users/{username}/follow") suspend fun unfollow(@Path("username") username: String): FollowResponse
+    @POST("users/{username}/phone-request") suspend fun requestPhone(@Path("username") username: String): Response<Unit>
+    @GET("me/phone-requests") suspend fun phoneRequests(): PhoneRequestsResponse
+    @PUT("me/phone-requests/{id}") suspend fun decidePhoneRequest(@Path("id") id: String, @Body body: PhoneRequestDecision): Response<Unit>
     @GET("suggestions") suspend fun suggestions(@Query("lat") lat: Double? = null, @Query("lng") lng: Double? = null): SuggestionsResponse
 
     // Chat

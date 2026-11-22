@@ -171,18 +171,27 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
     var paused by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var progress by remember(author.user.id, idx) { mutableFloatStateOf(0f) }
+    // The clock starts only once the photo is on screen (text stories start at once).
+    var ready by remember(item.id) { mutableStateOf(item.type != "image" || item.media == null) }
     val scope = rememberCoroutineScope()
     fun next() { if (idx < items.lastIndex) idx++ else onDone() }
     fun prev() { if (idx > 0) idx-- else onBack() }
     LaunchedEffect(active, item.id) { if (active && !own) repo.markSeen(author.user.id, item.id) }
-    LaunchedEffect(active, item.id, paused, confirmDelete) {
-        if (!active || paused || confirmDelete) return@LaunchedEffect
+    LaunchedEffect(active, item.id, paused, confirmDelete, ready) {
+        if (!active || paused || confirmDelete || !ready) return@LaunchedEffect
         while (progress < 1f) { kotlinx.coroutines.delay(40); progress = (progress + 40f / 5500f).coerceAtMost(1f) }
         next()
     }
     Box(Modifier.fillMaxSize()) {
         if (item.type == "image" && item.media != null) {
-            ProgressiveImage(item.media, Modifier.fillMaxSize(), item.caption, contentScale = ContentScale.Fit, placeholder = Color.Black)
+            val url = item.media.url
+            coil3.compose.AsyncImage(url, item.caption, Modifier.fillMaxSize(), contentScale = ContentScale.Fit,
+                onSuccess = { ready = true }, onError = { ready = true })
+            if (!ready) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                // Low-res preview behind the spinner when we have one.
+                item.media.thumbUrl?.let { coil3.compose.AsyncImage(it, null, Modifier.fillMaxSize().graphicsLayer { alpha = 0.5f }, contentScale = ContentScale.Fit) }
+                androidx.compose.material3.CircularProgressIndicator(Modifier.size(36.dp), color = Color.White, strokeWidth = 3.dp)
+            }
         } else {
             Box(Modifier.fillMaxSize().background(Color(0xFF1A1A2E)).padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(item.caption.orEmpty(), style = Pc.type.display.copy(fontSize = 26.sp), color = Color.White, textAlign = TextAlign.Center)
@@ -211,20 +220,27 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
                     Text(if (own) "Your story" else author.user.firstName, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = Color.White)
                     Text("  · ${Fmt.ago(item.createdAt)}", style = Pc.type.small, color = Color.White.copy(alpha = 0.8f))
                 }
-                if (own) {
-                    IconTap(PcIcons.Plus, "Add to your story", { nav.to(Routes.statusNew()) }, tint = Color.White)
-                    IconTap(PcIcons.Trash, "Delete this story", { confirmDelete = true }, tint = Color.White)
-                }
-                IconTap(PcIcons.Close, "Close", { nav.back() }, tint = Color.White)
+            }
+        }
+        // Actions sit at the bottom, in thumb reach.
+        Row(Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            StoryAction(PcIcons.Close, "Close") { nav.back() }
+            Spacer(Modifier.weight(1f))
+            if (own) {
+                StoryAction(PcIcons.Plus, "Add") { nav.to(Routes.statusNew()) }
+                StoryAction(PcIcons.Trash, "Delete") { confirmDelete = true }
+            }
+            StoryAction(PcIcons.Share, "Share") {
+                nav.share(if (own) "My story on UnSOLO: https://unsolo.in/profile/${author.user.username}" else "${author.user.firstName}'s story on UnSOLO: https://unsolo.in/profile/${author.user.username}")
             }
         }
         item.caption?.takeIf { item.type == "image" }?.let {
             Text(it, style = Pc.type.bodyStrong, color = Color.White, textAlign = TextAlign.Center,
-                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 28.dp)
+                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(start = 20.dp, end = 20.dp, bottom = 84.dp)
                     .clip(RoundedCornerShape(16.dp)).background(Color(0x6B111111)).padding(horizontal = 14.dp, vertical = 10.dp))
         }
         if (own) Text("Disappears ${expiresIn(item.expiresAt)} · saved on this phone", style = Pc.type.label, color = Color.White.copy(alpha = 0.75f),
-            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 6.dp))
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 64.dp))
     }
     if (confirmDelete) PcSheet({ confirmDelete = false }) {
         SheetTitle("Delete this story?")
@@ -240,6 +256,14 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
                 }
             }, Modifier.weight(1f), kind = BtnKind.Danger)
         }
+    }
+}
+
+@Composable
+private fun StoryAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    Column(Modifier.clip(RoundedCornerShape(14.dp)).clickable(onClickLabel = label, onClick = onClick).padding(horizontal = 12.dp, vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        PcIcon(icon, null, size = 22.dp, tint = Color.White)
+        Text(label, style = Pc.type.label, color = Color.White.copy(alpha = 0.9f))
     }
 }
 

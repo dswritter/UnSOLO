@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -84,8 +85,12 @@ fun PageHeader(
             }
             Text(title, style = Pc.type.display, color = Pc.colors.ink, modifier = Modifier.padding(start = Gutter, end = Gutter, bottom = 10.dp))
         } else {
-            Row(Modifier.fillMaxWidth().height(56.dp).padding(start = Gutter + 2.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(title, style = Pc.type.display.copy(fontSize = 29.sp), color = Pc.colors.ink, modifier = Modifier.weight(1f))
+            // Main tabs share Explore's bar: the wordmark, not a big page title (the tab bar already says
+            // where you are); the title stays as the screen-reader heading.
+            Row(Modifier.fillMaxWidth().height(PcTokens.topBar).padding(start = Gutter + 2.dp, end = 4.dp)
+                .semantics { heading(); contentDescription = title }, verticalAlignment = Alignment.CenterVertically) {
+                Wordmark()
+                Spacer(Modifier.weight(1f))
                 extra()
                 if (actions) HeaderActions(counts, onMessages, onActivity)
             }

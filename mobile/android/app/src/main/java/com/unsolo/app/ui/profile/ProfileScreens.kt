@@ -61,6 +61,18 @@ class ProfileViewModel(private val g: AppGraph, val username: String?) : ViewMod
     fun message(userId: String, onRoom: (String) -> Unit) = viewModelScope.launch { (g.tribe.openDirectChat(userId) as? com.unsolo.app.core.net.ApiResult.Ok)?.let { onRoom(it.value.roomId) } }
     fun report(userId: String, reason: String, details: String?) = viewModelScope.launch { g.tribe.report("user", userId, reason, details) }
     fun block(userId: String) = viewModelScope.launch { g.tribe.block(userId) }
+    fun follow(on: Boolean) = viewModelScope.launch { username?.let { g.tribe.setFollow(it, on) } }
+    fun requestPhone() = viewModelScope.launch {
+        val r = username?.let { g.tribe.requestPhone(it) }
+        g.events.emit(com.unsolo.app.data.AppEvent.Message(if (r is com.unsolo.app.core.net.ApiResult.Ok) "Asked. You'll see their number once they share it." else "Couldn't send the request. Try again."))
+    }
+    /** Own profile: who's asking for your number. */
+    val phoneRequests = kotlinx.coroutines.flow.MutableStateFlow<List<PhoneRequestItem>>(emptyList())
+    fun loadPhoneRequests() = viewModelScope.launch { (g.tribe.phoneRequests() as? com.unsolo.app.core.net.ApiResult.Ok)?.let { phoneRequests.value = it.value.items } }
+    fun decide(r: PhoneRequestItem, approve: Boolean) = viewModelScope.launch {
+        phoneRequests.value = phoneRequests.value - r
+        if (g.tribe.decidePhoneRequest(r.id, approve) !is com.unsolo.app.core.net.ApiResult.Ok) { phoneRequests.value = phoneRequests.value + r; g.events.emit(com.unsolo.app.data.AppEvent.Message("Couldn't save that. Try again.")) }
+    }
 }
 
 @Composable
@@ -93,6 +105,8 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
     val trips by vm.myTrips.collectAsStateWithLifecycle()
     val me by nav.graph.account.me.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableStateOf("posts") }
+    val phoneRequests by vm.phoneRequests.collectAsStateWithLifecycle()
+    LaunchedEffect(own) { if (own) vm.loadPhoneRequests() }
     var report by remember { mutableStateOf(false) }
     val c = Pc.colors
     val user = profile?.user ?: if (own) me?.user else null
@@ -123,27 +137,40 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
                             if (user?.isIdVerified == true) { Spacer(Modifier.width(6.dp)); VerifiedMark() }
                             if (user?.isHost == true) { Spacer(Modifier.width(6.dp)); Tag("Host", TagKind.Host) }
                         }
-                        Text(listOfNotNull("@$username", user?.homeCity, user?.mutuals?.takeIf { it > 0 }?.let { "$it mutual" }).joinToString(" · "), style = Pc.type.small, color = c.ink2)
+                        Text("@$username", style = Pc.type.small, color = c.ink2)
                     }
                 }
-                user?.bio?.let { Text(it, style = Pc.type.body, color = c.ink, modifier = Modifier.padding(horizontal = Gutter, vertical = 8.dp)) }
-                Spacer(Modifier.height(10.dp))
+                if (user != null) ProfileAbout(user, profile?.followsYou == true, nav)
+                Spacer(Modifier.height(12.dp))
                 Row(Modifier.padding(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (own) {
                         PcButton("Settings", { nav.to(Routes.SETTINGS) }, Modifier.weight(1f), kind = BtnKind.Outline)
                         if (user?.isHost == true || nav.graph.config.config.value.flags.hostOffersEnabled) PcButton("Hosting", { nav.to(Routes.HOST) }, Modifier.weight(1f), kind = BtnKind.Outline)
                     } else {
-                        PcButton("Message", { if (nav.requireSignIn()) user?.let { u -> vm.message(u.id) { nav.to(Routes.chat(it)) } } }, Modifier.weight(1f))
+                        val following = profile?.isFollowing == true
+                        PcButton(if (following) "Following" else if (profile?.followsYou == true) "Follow back" else "Follow", { if (nav.requireSignIn()) vm.follow(!following) },
+                            Modifier.weight(1f), kind = if (following) BtnKind.Outline else BtnKind.Primary)
+                        PcButton("Message", { if (nav.requireSignIn()) user?.let { u -> vm.message(u.id) { nav.to(Routes.chat(it)) } } }, Modifier.weight(1f), kind = BtnKind.Outline)
                     }
                 }
-                Spacer(Modifier.height(16.dp))
-                Row(Modifier.padding(horizontal = Gutter).fillMaxWidth().tonalFill()) {
-                    Stat("${user?.tripsCount ?: trips?.past?.size ?: 0}", "trips", Modifier.weight(1f))
-                    Stat("${posts.size}", "posts", Modifier.weight(1f))
-                    Stat("${user?.followers ?: 0}", "followers", Modifier.weight(1f))
+                profile?.phone?.let { ph -> PhoneRow(ph, onRequest = { if (nav.requirePhone()) vm.requestPhone() }, onCall = { nav.openUrl("tel:$it") }) }
+                if (own) PhoneRequestsCard(phoneRequests) { r, ok -> vm.decide(r, ok) }
+                Spacer(Modifier.height(12.dp))
+                ProfileStatsRow(profile, user, trips?.past?.size)
+                if (!own) ConnectionsCard(profile?.connections, profile?.travel?.mutualPlaces.orEmpty(), nav)
+                profile?.host?.let { h ->
+                    if (own) PeopleRow("Reached out to you", h.reachedOut, nav)
+                    PeopleRow("Travellers hosted", h.travellers, nav, total = h.travellerCount)
+                }
+                if (!profile?.listings.isNullOrEmpty()) Column(Modifier.padding(top = 10.dp)) {
+                    SectionHeader(if (own) "Your listings" else "Their trips and listings")
+                    androidx.compose.foundation.lazy.LazyRow(contentPadding = PaddingValues(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        items(profile!!.listings.size) { i -> val t = profile!!.listings[i]
+                            com.unsolo.app.ui.explore.TripCard(t, false, onSave = {}, onOpen = { nav.to(Routes.trip(t.slug)) }, onTake = { nav.to(Routes.trip(t.slug)) }, modifier = Modifier.width(250.dp)) }
+                    }
                 }
                 Spacer(Modifier.height(10.dp))
-                TextTabs(listOf("posts" to "Posts", "plans" to "Plans · ${plans.size}", "trips" to "Trips"), tab, { tab = it })
+                TextTabs(listOf("posts" to "Posts · ${tiles.size}", "plans" to "Plans · ${plans.size}", "trips" to "Travel", "reviews" to "Reviews", "badges" to "Badges"), tab, { tab = it })
                 profile?.openPlan?.takeIf { tab == "posts" }?.let { p ->
                     Row(Modifier.padding(horizontal = Gutter, vertical = 10.dp).fillMaxWidth().pencilledCard().clickable { nav.to(Routes.post(p.id)) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         MiniArc(p.spotsTotal ?: p.seats.size, p.memberCount, women = p.audience == "women")
@@ -182,7 +209,9 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
                     }
                 }
             }
-            else -> {
+            "reviews" -> item(span = { GridItemSpan(3) }) { ReviewsSection(profile, nav) }
+            "badges" -> item(span = { GridItemSpan(3) }) { BadgesSection(profile?.badges, own) }
+            else -> if (profile?.travel != null) item(span = { GridItemSpan(3) }) { TravelSection(profile!!.travel, own, nav) } else {
                 val past = if (own) trips?.past.orEmpty() else emptyList()
                 if (past.isEmpty()) item(span = { GridItemSpan(3) }) { EmptyState("Trip log", if (own) "Your past UnSOLO trips show here." else "Trips are shown to the traveller only.") }
                 items(past, key = { "t-" + it.id }, span = { GridItemSpan(3) }) { b ->
