@@ -259,4 +259,68 @@ final class ProfileRepo: AppBound {
             state[username] = .failed(error.localizedDescription)
         }
     }
+
+    /// Follow / unfollow: the button flips at once; the server's counts replace the guess.
+    func setFollow(_ username: String, on: Bool) async {
+        guard let app else { return }
+        let before = profiles[username]
+        if var p = profile(username) {
+            p.isFollowing = on
+            p.user.followers = max(0, p.user.followers + (on ? 1 : -1))
+            profiles[username] = p
+        }
+        Haptics.tick()
+        do {
+            let r = try await app.api.follow(username, on: on)
+            if var p = profiles[username] {
+                p.isFollowing = r.isFollowing
+                if let f = r.followers { p.user.followers = f }
+                profiles[username] = p
+                app.store.setEntry("profile:\(username)", p)
+            }
+        } catch {
+            if let before { profiles[username] = before }
+            app.showToast("Couldn't update that. Try again.")
+        }
+    }
+
+    func requestPhone(_ username: String) async {
+        guard let app else { return }
+        do {
+            try await app.api.requestPhone(username)
+            if var p = profiles[username], var ph = p.phone { ph.request = "pending"; p.phone = ph; profiles[username] = p }
+            app.showToast("Asked. You'll see their number once they share it.")
+        } catch {
+            app.showToast("Couldn't send the request. Try again.")
+        }
+    }
+
+    /// Own profile: who's asking for your number.
+    var phoneRequests: [PhoneRequestItem] = []
+
+    func loadPhoneRequests() async {
+        guard let app, app.session.isSignedIn, let r = try? await app.api.phoneRequests() else { return }
+        phoneRequests = r.items
+    }
+
+    func decidePhoneRequest(_ r: PhoneRequestItem, approve: Bool) async {
+        guard let app else { return }
+        phoneRequests.removeAll { $0.id == r.id }
+        do { try await app.api.decidePhoneRequest(r.id, approve: approve) } catch {
+            phoneRequests.append(r)
+            app.showToast("Couldn't save that. Try again.")
+        }
+    }
+
+    /// Followers or following of a person (saved copy first).
+    func people(_ username: String, kind: String) -> [UserLite]? {
+        app?.store.entry([UserLite].self, "people:\(username):\(kind)")
+    }
+
+    func refreshPeople(_ username: String, kind: String) async -> [UserLite]? {
+        guard let app else { return nil }
+        let r = try? await (kind == "followers" ? app.api.followers(username) : app.api.following(username))
+        if let items = r?.items { app.store.setEntry("people:\(username):\(kind)", items) }
+        return r?.items
+    }
 }

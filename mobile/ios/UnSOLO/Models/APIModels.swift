@@ -58,6 +58,13 @@ struct TripLite: Codable, Hashable, Sendable, Identifiable {
     var seatsTotal: Int?
     var host: UserLite?
     @DefaultEmpty var goingFaces: [UserLite]
+    /// "trip" (default), or "stay" / "activity" / "rental": listings book on the web at `webPath`.
+    var kind: String? = nil
+    /// Price unit for listings: "night", "person", "day".
+    var unit: String? = nil
+    var webPath: String? = nil
+
+    var isListing: Bool { webPath != nil && (kind ?? "trip") != "trip" }
 }
 
 struct Departure: Codable, Hashable, Sendable {
@@ -93,12 +100,16 @@ struct TripDetail: Codable, Hashable, Sendable {
     var rating: Rating?
     @DefaultEmpty var stories: [Post]
     var planningCount: Int?
+    var kind: String? = nil
+    var unit: String? = nil
+    var webPath: String? = nil
 
     var lite: TripLite {
         TripLite(id: id, slug: slug, title: title, place: place, image: image, priceFromPaise: priceFromPaise,
                  durationDays: durationDays, nextDeparture: nextDeparture, seatsLeft: seatsLeft,
-                 seatsTotal: seatsTotal, host: host, goingFaces: goingFaces)
+                 seatsTotal: seatsTotal, host: host, goingFaces: goingFaces, kind: kind, unit: unit, webPath: webPath)
     }
+    var isListing: Bool { lite.isListing }
 }
 
 enum PostKind: String, Codable, Sendable, CaseIterable {
@@ -365,7 +376,7 @@ enum LandingTab: String, Codable, Sendable, CaseIterable {
         switch self {
         case .explore: "Explore"
         case .tribe: "Tribe"
-        case .trips: "My trips"
+        case .trips: "Bookings"
         }
     }
 }
@@ -446,6 +457,16 @@ struct MeUser: Codable, Hashable, Sendable {
     var homeCity: String?
     var bio: String?
     var dateOfBirth: String?
+    var statusText: String? = nil
+    var statusVisibility: String? = nil
+    var location: String? = nil
+    var instagram: String? = nil
+    var website: String? = nil
+    /// When the username can next change (40 days after the last change); nil = now.
+    var usernameChangeAfter: String? = nil
+    var tripsPrivate: Bool? = nil
+    var statesPrivate: Bool? = nil
+    var phonePublic: Bool? = nil
 
     var lite: UserLite {
         UserLite(id: id, username: username, name: name, avatarUrl: avatarUrl, isPhoneVerified: isPhoneVerified,
@@ -558,6 +579,12 @@ struct ProfileUser: Codable, Hashable, Sendable {
     var tripsCount: Int
     var followers: Int
     var following: Int
+    var location: String? = nil
+    var statusText: String? = nil
+    var instagramUrl: String? = nil
+    var websiteUrl: String? = nil
+    var travelStyle: [String]? = nil
+    var joinedAt: String? = nil
 
     var lite: UserLite {
         UserLite(id: id, username: username, name: name, avatarUrl: avatarUrl, isPhoneVerified: isPhoneVerified,
@@ -570,6 +597,15 @@ struct ProfileResponse: Codable, Sendable {
     @DefaultEmpty var posts: [Post]
     var openPlan: Post?
     var isFollowing: Bool
+    var followsYou: Bool? = nil
+    var stats: ProfileStats? = nil
+    var phone: ProfilePhone? = nil
+    var travel: ProfileTravel? = nil
+    var badges: ProfileBadges? = nil
+    var listings: [TripLite]? = nil
+    var reviewsWritten: [ProfileReview]? = nil
+    var host: ProfileHost? = nil
+    var connections: ProfileConnections? = nil
 }
 
 struct Suggestion: Codable, Hashable, Sendable, Identifiable {

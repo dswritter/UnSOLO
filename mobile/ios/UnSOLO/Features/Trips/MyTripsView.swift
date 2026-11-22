@@ -10,9 +10,10 @@ struct MyTripsView: View {
     private var my: MyTripsResponse { app.trips.myTrips }
 
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
-                AppHeader(title: "My trips")
+                AppHeader(title: "Bookings").id("top")
                 if !session.isSignedIn {
                     signedOut
                 } else {
@@ -27,7 +28,13 @@ struct MyTripsView: View {
                 }
             }
         }
-        .refreshable { await app.trips.refresh() }
+        .refreshable {
+            async let a: Void = app.trips.refresh()
+            async let b: Void = app.chat.refreshChats()
+            _ = await (a, b)
+        }
+        .onChange(of: router.reselected[.trips]) { _, _ in withAnimation { proxy.scrollTo("top", anchor: .top) } }
+        }
         .pcScreen()
         .toolbar(.hidden, for: .navigationBar)
         .task(id: session.isSignedIn) {
@@ -38,7 +45,8 @@ struct MyTripsView: View {
 
     private var signedOut: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Your bookings, plans and trip circles live here.").pcFont(.body).foregroundStyle(Pc.ink)
+            Text("Your bookings live here").pcFont(.title2).foregroundStyle(Pc.ink)
+            Text("Sign in to see trips, stays, activities and rentals you've booked, plans you've joined and their group chats.").pcFont(.body).foregroundStyle(Pc.ink2)
             Button("Sign in") { router.authSheet = true }.buttonStyle(.pc(.primary, fullWidth: true))
         }
         .padding(20)
@@ -46,8 +54,12 @@ struct MyTripsView: View {
 
     @ViewBuilder private var upcoming: some View {
         if my.upcoming.isEmpty {
-            EmptyState(symbol: "ticket", title: "No trips yet", message: "Grab a spot on a hosted trip or join a plan in the Tribe.")
-            Button("Explore departures") { router.select(.explore) }.buttonStyle(.pc(.outline, fullWidth: true)).padding(.horizontal, 20)
+            if my.past.isEmpty {
+                EmptyState(symbol: "ticket", title: "No bookings yet", message: "Grab a spot on a trip, book a stay or a rental, or ask to join a plan in Tribe.")
+            } else {
+                EmptyState(symbol: "ticket", title: "Nothing coming up yet.", message: nil)
+            }
+            Button(my.past.isEmpty ? "Explore" : "Find your next") { router.select(.explore) }.buttonStyle(.pc(.outline, fullWidth: true)).padding(.horizontal, 20)
         }
         VStack(spacing: 12) {
             ForEach(my.upcoming) { b in TicketCard(booking: b) }
@@ -70,7 +82,7 @@ struct MyTripsView: View {
     }
 
     @ViewBuilder private var past: some View {
-        if my.past.isEmpty { EmptyState(symbol: "clock.arrow.circlepath", title: "No past trips yet") }
+        if my.past.isEmpty { EmptyState(symbol: "clock.arrow.circlepath", title: "Nothing past yet", message: "Trips, stays and activities you've done show up here.") }
         VStack(spacing: 12) { ForEach(my.past) { b in PastTripCard(booking: b) } }
             .padding(.horizontal, 14)
         Color.clear.frame(height: 20)
@@ -92,13 +104,23 @@ struct TicketCard: View {
         let others = trip.goingFaces.filter { $0.id != trip.host?.id && $0.id != session.user?.id }
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center, spacing: 16) {
-                SeatRing(seats: RingSeats.trip(trip, you: session.user), size: 112, dots: .faces,
-                         badge: trip.host.map { RingBadge(user: $0, kind: .host) }, centre: .photo(trip.image))
+                if booking.isService {
+                    // Stays, activities and rentals: no circle of seats, just the place.
+                    PcAsyncImage(media: trip.image, targetSize: CGSize(width: 96, height: 96))
+                        .frame(width: 96, height: 96).clipShape(Pc.shape(Pc.imageRadius))
+                } else {
+                    SeatRing(seats: RingSeats.trip(trip, you: session.user), size: 112, dots: .faces,
+                             badge: trip.host.map { RingBadge(user: $0, kind: .host) }, centre: .photo(trip.image))
+                }
                 VStack(alignment: .leading, spacing: 6) {
-                    PcTag(text: days <= 0 ? "Today" : "In \(days) day\(days == 1 ? "" : "s")", style: .verified, icon: "calendar.badge.checkmark")
+                    HStack(spacing: 6) {
+                        PcTag(text: days <= 0 ? "Today" : days == 1 ? "Tomorrow" : "In \(days) days", style: .verified, icon: "calendar.badge.checkmark")
+                        if booking.isService { PcTag(text: booking.kindLabel, style: .kind) }
+                    }
                     Text(trip.title).pcFont(.title3).foregroundStyle(Pc.ink).lineLimit(2)
-                    Text("\(Fmt.weekdayDayMonth(booking.travelDate)) · \(booking.guests) spot\(booking.guests == 1 ? "" : "s")").pcFont(.small).foregroundStyle(Pc.ink2)
-                    SeatCaption(counts: counts, font: .system(size: 12.5, weight: .semibold))
+                    Text("\(Fmt.weekdayDayMonth(booking.travelDate)) · \(booking.guestsLabel)").pcFont(.small).foregroundStyle(Pc.ink2)
+                    if !booking.isService { SeatCaption(counts: counts, font: .system(size: 12.5, weight: .semibold)) }
+                    else if let place = trip.place?.name { Text(place).pcFont(.small).foregroundStyle(Pc.ink2).lineLimit(1) }
                 }
                 Spacer(minLength: 0)
             }
@@ -160,11 +182,16 @@ struct PastTripCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 16) {
-                SeatRing(seats: RingSeats.trip(booking.trip, you: session.user), size: 80, past: true, dots: .none, centre: .photo(booking.trip.image))
+                if booking.isService {
+                    PcAsyncImage(media: booking.trip.image, targetSize: CGSize(width: 80, height: 80))
+                        .frame(width: 80, height: 80).clipShape(Circle()).saturation(0.4)
+                } else {
+                    SeatRing(seats: RingSeats.trip(booking.trip, you: session.user), size: 80, past: true, dots: .none, centre: .photo(booking.trip.image))
+                }
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Went · \(Fmt.dayMonth(booking.travelDate))").font(.system(size: 12, weight: .bold)).foregroundStyle(Pc.ink3)
                     Text(booking.trip.title).pcFont(.title3).foregroundStyle(Pc.ink).lineLimit(2)
-                    Text("\(booking.guests) spot\(booking.guests == 1 ? "" : "s") · booking \(booking.confirmationCode ?? "")").pcFont(.small).foregroundStyle(Pc.ink2).lineLimit(1)
+                    Text("\(booking.guestsLabel) · booking \(booking.confirmationCode ?? "")").pcFont(.small).foregroundStyle(Pc.ink2).lineLimit(1)
                 }
                 Spacer(minLength: 0)
             }
@@ -262,5 +289,26 @@ struct PastTripRow: View {
         .contentShape(Rectangle())
         .onTapGesture { router.push(.trip(slug: booking.trip.slug)) }
         .overlay(alignment: .bottom) { if showsDivider { HairlineRule().padding(.leading, 70) } }
+    }
+}
+
+extension Booking {
+    /// A stay, activity or rental (service booking), not a group trip.
+    var isService: Bool { trip.isListing || ["stay", "activity", "rental"].contains(trip.kind ?? "") }
+    var kindLabel: String {
+        switch trip.kind {
+        case "stay": "Stay"
+        case "activity": "Activity"
+        case "rental": "Rental"
+        default: "Trip"
+        }
+    }
+    var guestsLabel: String {
+        switch trip.kind {
+        case "stay": "\(guests) guest\(guests == 1 ? "" : "s")"
+        case "rental": "\(guests) booked"
+        case "activity": "\(guests) \(guests == 1 ? "person" : "people")"
+        default: "\(guests) spot\(guests == 1 ? "" : "s")"
+        }
     }
 }

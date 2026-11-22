@@ -38,6 +38,12 @@ struct RootView: View {
         .fullScreenCover(item: $router.storyViewer) { item in
             StoryViewer(item: item).environment(app).environment(router).environment(session)
         }
+        .fullScreenCover(item: $router.statusViewer) { item in
+            StatusViewer(item: item).environment(app).environment(router).environment(session)
+        }
+        .fullScreenCover(item: $router.storyComposer) { item in
+            StatusComposer(archiveId: item.archiveId).environment(app).environment(router).environment(session)
+        }
         .sheet(item: $router.safari) { item in SafariView(url: item.url).ignoresSafeArea().presentationCornerRadius(PcTokens.radiusSheet) }
         .sheet(isPresented: $router.authSheet, onDismiss: { if !session.isSignedIn { router.afterGate = nil } }) {
             WelcomeView().environment(app).environment(router).environment(session).pcSheet()
@@ -116,6 +122,13 @@ struct RouteView: View {
         case .hostHub: HostHubView()
         case .offerForm(let postId): OfferFormView(postId: postId)
         case .offerReview(let postId): OfferReviewView(postId: postId)
+        case .leaderboard: LeaderboardView()
+        case .people(let username, let kind): PeopleListView(username: username, kind: kind)
+        case .editProfile: EditProfileView()
+        case .referrals: ReferralsView()
+        case .offers: OffersView()
+        case .storyArchive: StatusArchiveView()
+        case .exploreAll(let category): ExploreAllView(category: ExploreCategory(rawValue: category) ?? .trips)
         }
     }
 }

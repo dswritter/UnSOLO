@@ -64,6 +64,12 @@ enum Fmt {
         return "\(c.day ?? 0) \(months[(c.month ?? 1) - 1])"
     }
 
+    /// "26 Nov 2026" (falls back to the raw text).
+    static func longDate(_ text: String?) -> String {
+        guard let d = day(text.map { String($0.prefix(10)) }) else { return text ?? "" }
+        return "\(dayMonth(Fmt.ymd(d))) \(calendar.component(.year, from: d))"
+    }
+
     static func dayNumber(_ ymd: String?) -> String {
         guard let d = day(ymd) else { return "--" }
         return String(format: "%02d", calendar.component(.day, from: d))

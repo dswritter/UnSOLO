@@ -311,6 +311,7 @@ final class TribeRepo: AppBound {
                 on = true
             }
         }
+        Haptics.tick()
         app.outbox.enqueue(kind: "reaction", method: on ? .put : .delete, path: "/posts/\(postId)/reactions/\(kind.rawValue)", body: nil,
                            clientId: "react:\(postId):\(kind.rawValue)", refId: postId, coalesce: true)
         Task {
@@ -350,14 +351,33 @@ final class TribeRepo: AppBound {
     }
 
     /// Polls are answered through a comment with `pollChoice` (the contract has no separate vote endpoint).
+    @ObservationIgnored private var voteTasks: [String: Task<Void, Never>] = [:]
+
+    /// Tap an option to vote, another to change it, yours again to take it back. The card moves at once;
+    /// one PUT /posts/{id}/vote follows a short pause (rapid taps send only the last) and its counts replace
+    /// the local guess. Votes are never posted as replies.
     func vote(_ postId: String, option: PollOption) {
-        mutate(postId) { p in
-            guard var poll = p.poll, poll.myChoice == nil, let i = poll.options.firstIndex(where: { $0.id == option.id }) else { return }
-            poll.options[i].votes += 1
-            poll.myChoice = option.id
-            p.poll = poll
+        guard let app, let poll = post(postId)?.poll else { return }
+        let had = poll.myChoice != nil
+        let choice: String? = poll.myChoice == option.id ? nil : option.id
+        mutate(postId) { $0.poll = poll.moved(to: choice) }
+        Haptics.tick()
+        voteTasks[postId]?.cancel()
+        voteTasks[postId] = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled, let self else { return }
+            do {
+                let r = try await app.api.vote(postId: postId, choice: choice)
+                self.mutate(postId) { $0.poll = r.poll }
+            } catch APIError.offline {
+                await self.refreshPost(postId)
+                app.showToast("You're offline. Your vote wasn't saved.")
+            } catch {
+                await self.refreshPost(postId)
+                app.showToast((error as? APIError)?.errorDescription ?? "Your vote didn't go through. Try again.")
+            }
         }
-        addComment(postId, body: "Voted: \(option.label)", pollChoice: option.id)
+        Task { await app.analytics.track("poll.vote", props: ["changed": had ? "true" : "false"]) }
     }
 
     // MARK: Join requests

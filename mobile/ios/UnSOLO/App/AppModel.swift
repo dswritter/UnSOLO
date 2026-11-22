@@ -32,6 +32,7 @@ final class AppModel {
     let activity: ActivityRepo
     let chat: ChatRepo
     let profiles: ProfileRepo
+    let statuses: StatusRepo
     /// Saved trips and watched stories (device only).
     let marks = LocalMarks()
 
@@ -75,9 +76,10 @@ final class AppModel {
         activity = ActivityRepo()
         chat = ChatRepo()
         profiles = ProfileRepo()
+        statuses = StatusRepo()
 
         router.tab = AppTab(landing.landingTab)
-        for repo in [session, explore, tribe, trips, activity, chat, profiles] as [any AppBound] { repo.bind(self) }
+        for repo in [session, explore, tribe, trips, activity, chat, profiles, statuses] as [any AppBound] { repo.bind(self) }
         uploads.bind(self)
         outbox.isOnline = { [weak connectivity] in connectivity?.isOnline ?? true }
         outbox.onChange = { [weak self] in self?.pendingOutbox = self?.outbox.pendingCount ?? 0 }
@@ -104,6 +106,8 @@ final class AppModel {
         trips.loadCached()
         activity.loadCached()
         chat.loadCached()
+        statuses.loadCached()
+        statuses.loadArchive()
         pendingOutbox = outbox.pendingCount
 
         #if DEBUG
@@ -119,6 +123,7 @@ final class AppModel {
             await session.refreshMe()
             await checkLandingSuggestion()
             await sync()
+            Task { await statuses.refresh() }
             PushManager.shared.refreshRegistration { [weak self] token in self?.registerDevice(token) }
         }
         uploads.resumeAll()
@@ -182,7 +187,7 @@ final class AppModel {
     func foregrounded() async {
         await analytics.foregrounded()
         guard launched else { return }
-        if session.isSignedIn { await sync() }
+        if session.isSignedIn { await sync(); await statuses.refresh() }
         await outbox.drain()
     }
 
@@ -324,6 +329,14 @@ final class AppModel {
             try? await Task.sleep(for: .seconds(3))
             if self?.toast == text { self?.toast = nil }
         }
+    }
+
+    /// Stays, activities and rentals book on their web page (`webPath`, a same-site path).
+    func openListing(_ t: TripLite) {
+        guard let path = t.webPath, DeepLink.isSameSitePath(path),
+              let url = URL(string: path, relativeTo: AppInfo.webBaseURL)?.absoluteURL else { return }
+        router.safari = SafariItem(url: url)
+        Task { await analytics.track("trip.take_seat", props: ["slug": t.slug, "date": ""]) }
     }
 
     func openBooking(slug: String, date: String?) {

@@ -227,6 +227,7 @@ struct PlanComposer: View {
     @Environment(\.dismiss) private var dismiss
     @State private var title = ""
     @State private var place = ""
+    @State private var pickedPlace: Place?
     @State private var start = Calendar.current.date(byAdding: .day, value: 14, to: Date()) ?? Date()
     @State private var end = Calendar.current.date(byAdding: .day, value: 16, to: Date()) ?? Date()
     @State private var spots = 5
@@ -267,7 +268,7 @@ struct PlanComposer: View {
             .padding(.bottom, 4)
             FormRow(label: "Title") { PcTextField(placeholder: "Spiti in mid-January, slow and cold", text: $title, style: .title3) }
             FormRow(label: "Where to?") {
-                HStack { Image(systemName: "mappin").font(.system(size: 13, weight: .bold)).foregroundStyle(Pc.ink2); PcTextField(placeholder: "Spiti Valley", text: $place, style: .bodyStrong) }
+                PlaceField(placeholder: "Spiti Valley", text: $place, picked: $pickedPlace)
             }
             FormRow(label: "When · \(days) day\(days == 1 ? "" : "s")") {
                 HStack {
@@ -321,7 +322,7 @@ struct PlanComposer: View {
 
     private func publish() {
         let draft = ComposeDraft(kind: .plan, title: title.trimmingCharacters(in: .whitespaces), body: details.trimmingCharacters(in: .whitespacesAndNewlines),
-                                 place: Place(name: place.trimmingCharacters(in: .whitespaces), slug: nil, lat: nil, lng: nil),
+                                 place: PlaceField.place(text: place, picked: pickedPlace),
                                  startsOn: Fmt.ymd(start), endsOn: Fmt.ymd(end), spotsTotal: spots, audience: finalAudience,
                                  estCostText: cost.isEmpty ? nil : "Est. \(cost) each", meetingPoint: meeting.isEmpty ? nil : meeting, photos: photos)
         app.tribe.publish(draft)
@@ -342,6 +343,7 @@ struct StoryComposer: View {
     @State private var body_ = ""
     @State private var tripSlug: String?
     @State private var place = ""
+    @State private var pickedPlace: Place?
     @State private var tagged: Set<String> = []
     @State private var showOnTripPage = true
 
@@ -378,7 +380,7 @@ struct StoryComposer: View {
                         .accessibilityAddTraits(tripSlug == t.slug ? .isSelected : [])
                     }
                     if tripSlug == nil {
-                        HStack { Image(systemName: "mappin"); PcTextField(placeholder: "Or tag a place", text: $place) }
+                        PlaceField(placeholder: "Or tag a place", text: $place, picked: $pickedPlace, style: .body)
                     }
                 }
             }
@@ -422,7 +424,7 @@ struct StoryComposer: View {
     private func publish() {
         let tags = trip?.goingFaces.filter { tagged.contains($0.id) } ?? []
         let draft = ComposeDraft(kind: .story, title: title, body: body_,
-                                 place: trip?.place ?? (place.isEmpty ? nil : Place(name: place, slug: nil, lat: nil, lng: nil)),
+                                 place: trip?.place ?? PlaceField.place(text: place, picked: pickedPlace),
                                  tripPackageId: trip?.id, trip: trip, showOnTripPage: trip != nil ? showOnTripPage : nil, photos: photos, tagUsers: tags)
         app.tribe.publish(draft)
         router.tab = .tribe
@@ -440,6 +442,7 @@ struct AskComposer: View {
     @Environment(\.dismiss) private var dismiss
     @State private var question = ""
     @State private var place = ""
+    @State private var pickedPlace: Place?
     @State private var details = ""
     @State private var hasPoll = false
     @State private var options = ["", ""]
@@ -503,7 +506,7 @@ struct AskComposer: View {
                     .padding(.top, 10)
             }
             FormRow(label: "Place (optional)") {
-                HStack { Image(systemName: "mappin").font(.system(size: 13, weight: .bold)).foregroundStyle(Pc.ink2); PcTextField(placeholder: "Kasol, Parvati Valley", text: $place, style: .bodyStrong) }
+                PlaceField(placeholder: "Kasol, Parvati Valley", text: $place, picked: $pickedPlace)
             }
             FormRow(label: "More detail (optional)") { PcTextField(placeholder: "Dates, budget, what you're after", text: $details, axis: .vertical) }
             Text("No links or prices in answers. Phone numbers are hidden automatically.").pcFont(.small).foregroundStyle(Pc.ink3)
@@ -515,7 +518,7 @@ struct AskComposer: View {
     private func publish() {
         let q = question.trimmingCharacters(in: .whitespacesAndNewlines)
         let draft = ComposeDraft(kind: .ask, title: q, body: details.isEmpty ? q : details,
-                                 place: place.isEmpty ? nil : Place(name: place, slug: nil, lat: nil, lng: nil),
+                                 place: PlaceField.place(text: place, picked: pickedPlace),
                                  poll: hasPoll ? cleanOptions : nil)
         app.tribe.publish(draft)
         router.tab = .tribe

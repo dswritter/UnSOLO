@@ -48,7 +48,7 @@ struct TripDetailView: View {
                         ringBlock(lite)
                         header(lite)
                         if let d = detail {
-                            departures(d)
+                            if !d.isListing { departures(d) }
                             includes(d)
                         }
                         host(lite)
@@ -327,6 +327,15 @@ struct TripDetailView: View {
             }
             .buttonStyle(.pcPress)
             .accessibilityLabel(saved ? "Saved" : "Save trip")
+            if t.isListing {
+                // Stays, activities and rentals: same native page, booking on the web listing.
+                VStack(alignment: .leading, spacing: 1) {
+                    PriceText(paise: t.priceFromPaise, unit: "/\(t.unit ?? "booking")")
+                    Text(t.place?.name.components(separatedBy: ",").first ?? "").pcFont(.small).foregroundStyle(Pc.ink2).lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Button("Book") { app.openListing(t) }.buttonStyle(.pcAccent)
+            } else {
             VStack(alignment: .leading, spacing: 1) {
                 PriceText(paise: t.priceFromPaise)
                 Text(left == 0 ? "Full on \(Fmt.dayMonth(date))" : "\(Fmt.dayMonth(date)) · \(left) spot\(left == 1 ? "" : "s") left")
@@ -335,6 +344,7 @@ struct TripDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             Button(left == 0 ? "Join waitlist" : "Grab a spot") { app.openBooking(slug: slug, date: date) }
                 .buttonStyle(.pcAccent)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.top, 10)
