@@ -1,5 +1,10 @@
 package com.unsolo.app.ui.profile
 
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -57,7 +62,9 @@ import kotlinx.serialization.json.add
 class ProfileViewModel(private val g: AppGraph, val username: String?) : ViewModel() {
     val profile = (username?.let { g.tribe.observeProfile(it) } ?: flowOf(null)).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     val myTrips = g.explore.observeMyTrips().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-    init { viewModelScope.launch { username?.let { g.tribe.refreshProfile(it) }; if (username == g.account.me.value?.user?.username) g.explore.refreshMyTrips() } }
+    /** True until the first fresh load finishes (cached data may show meanwhile). */
+    val loading = kotlinx.coroutines.flow.MutableStateFlow(true)
+    init { viewModelScope.launch { username?.let { g.tribe.refreshProfile(it) }; loading.value = false; if (username == g.account.me.value?.user?.username) g.explore.refreshMyTrips() } }
     fun message(userId: String, onRoom: (String) -> Unit) = viewModelScope.launch { (g.tribe.openDirectChat(userId) as? com.unsolo.app.core.net.ApiResult.Ok)?.let { onRoom(it.value.roomId) } }
     fun report(userId: String, reason: String, details: String?) = viewModelScope.launch { g.tribe.report("user", userId, reason, details) }
     fun block(userId: String) = viewModelScope.launch { g.tribe.block(userId) }
@@ -106,6 +113,9 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
     val me by nav.graph.account.me.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableStateOf("posts") }
     val phoneRequests by vm.phoneRequests.collectAsStateWithLifecycle()
+    val loading by vm.loading.collectAsStateWithLifecycle()
+    // Nothing fresh yet: placeholders where the details go (a cached copy shows with a thin bar instead).
+    val waiting = loading && profile?.stats == null
     LaunchedEffect(own) { if (own) vm.loadPhoneRequests() }
     var report by remember { mutableStateOf(false) }
     val c = Pc.colors
@@ -140,7 +150,8 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
                         Text("@$username", style = Pc.type.small, color = c.ink2)
                     }
                 }
-                if (user != null) ProfileAbout(user, profile?.followsYou == true, nav)
+                if (loading) androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = Gutter, vertical = 6.dp).height(2.dp).clip(CircleShape), color = c.gold, trackColor = c.tonal)
+                if (waiting) ProfileSkeleton() else if (user != null) ProfileAbout(user, profile?.followsYou == true, nav)
                 Spacer(Modifier.height(12.dp))
                 Row(Modifier.padding(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (own) {
@@ -156,7 +167,7 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
                 profile?.phone?.let { ph -> PhoneRow(ph, onRequest = { if (nav.requirePhone()) vm.requestPhone() }, onCall = { nav.openUrl("tel:$it") }) }
                 if (own) PhoneRequestsCard(phoneRequests) { r, ok -> vm.decide(r, ok) }
                 Spacer(Modifier.height(12.dp))
-                ProfileStatsRow(profile, user, trips?.past?.size)
+                if (!waiting) ProfileStatsRow(profile, user, trips?.past?.size)
                 if (!own) ConnectionsCard(profile?.connections, profile?.travel?.mutualPlaces.orEmpty(), nav)
                 profile?.host?.let { h ->
                     if (own) PeopleRow("Reached out to you", h.reachedOut, nav)
@@ -186,7 +197,8 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
         }
         when (tab) {
             "posts" -> {
-                if (tiles.isEmpty()) item(span = { GridItemSpan(3) }) { EmptyState("No posts yet", if (own) "Share a story from a trip or ask the Tribe something." else "Nothing shared yet.") }
+                if (waiting) items(6, key = { "sk-$it" }) { SkeletonBlock(Modifier.aspectRatio(1f)) }
+                else if (tiles.isEmpty()) item(span = { GridItemSpan(3) }) { EmptyState("No posts yet", if (own) "Share a story from a trip or ask the Tribe something." else "Nothing shared yet.") }
                 items(tiles, key = { it.id }) { p ->
                     Box(Modifier.aspectRatio(1f).clip(RoundedCornerShape(PcTokens.radiusImage)).clickable { nav.to(Routes.post(p.id)) }) {
                         if (p.media.isNotEmpty()) ProgressiveImage(p.media.first(), Modifier.fillMaxSize())
@@ -226,6 +238,26 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
     }
     if (report && user != null) ReportSheet(user, onDismiss = { report = false }, onSubmit = { r, d -> report = false; if (nav.requireSignIn()) vm.report(user.id, r, d) },
         onBlock = { report = false; if (nav.requireSignIn()) { vm.block(user.id); nav.back() } })
+}
+
+@Composable
+private fun SkeletonBlock(modifier: Modifier = Modifier) {
+    val pulse = androidx.compose.animation.core.rememberInfiniteTransition(label = "psk")
+    val a by pulse.animateFloat(0.45f, 0.9f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(700), androidx.compose.animation.core.RepeatMode.Reverse), label = "psk-a")
+    Box(modifier.graphicsLayer { alpha = a }.clip(RoundedCornerShape(12.dp)).background(Pc.colors.tonal))
+}
+
+/** Status, bio and stats placeholders while the profile loads. */
+@Composable
+private fun ProfileSkeleton() {
+    Column(Modifier.padding(horizontal = Gutter).semantics { contentDescription = "Loading profile" }) {
+        SkeletonBlock(Modifier.padding(top = 10.dp).fillMaxWidth(0.7f).height(34.dp))
+        SkeletonBlock(Modifier.padding(top = 10.dp).fillMaxWidth().height(14.dp))
+        SkeletonBlock(Modifier.padding(top = 6.dp).fillMaxWidth(0.85f).height(14.dp))
+        SkeletonBlock(Modifier.padding(top = 10.dp).fillMaxWidth(0.5f).height(12.dp))
+        Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { repeat(4) { SkeletonBlock(Modifier.width(76.dp).height(56.dp)) } }
+        SkeletonBlock(Modifier.padding(top = 10.dp).fillMaxWidth().height(48.dp))
+    }
 }
 
 @Composable
