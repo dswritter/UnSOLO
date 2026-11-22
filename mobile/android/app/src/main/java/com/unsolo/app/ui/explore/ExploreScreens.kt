@@ -105,7 +105,8 @@ class ExploreViewModel(private val g: AppGraph) : ViewModel() {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val items: StateFlow<List<TripLite>> = combine(all, window, openOnly, price) { list, w, open, p ->
-        list.filter { t -> inWindow(t.nextDeparture, w) && (!open || (t.seatsLeft ?: 0) > 0) && (p.paise == null || t.priceFromPaise <= p.paise) }
+        // Dates and open seats only apply to trips; listings have neither.
+        list.filter { t -> (t.isListing || (inWindow(t.nextDeparture, w) && (!open || (t.seatsLeft ?: 0) > 0))) && (p.paise == null || t.priceFromPaise <= p.paise) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val hero: StateFlow<Pair<TripLite?, TripDetail?>> = items.map { it.firstOrNull()?.slug }.distinctUntilChanged()
@@ -158,9 +159,18 @@ class ExploreViewModel(private val g: AppGraph) : ViewModel() {
 }
 
 private fun takeSeat(nav: AppNav, t: TripLite, screen: String) {
+    if (t.isListing) { openTrip(nav, t); return }
     nav.graph.analytics.track("trip.take_seat", screen, mapOf("slug" to t.slug, "date" to t.nextDeparture))
     nav.openWeb("/packages/${t.slug}?book=1")
 }
+
+/** Trips open natively; stays, activities and rentals open their listing page (booking lives there). */
+private fun openTrip(nav: AppNav, t: TripLite) {
+    val path = t.webPath
+    if (t.isListing && path != null) nav.openWeb(path) else nav.to(Routes.trip(t.slug))
+}
+
+private fun categoryNoun(category: String) = when (category) { "stays" -> "stays"; "activities" -> "activities"; "rentals" -> "rentals"; else -> "departures" }
 
 @Composable
 fun ExploreScreen(nav: AppNav) {
@@ -199,11 +209,20 @@ fun ExploreScreen(nav: AppNav) {
             }
             if (items.isEmpty()) {
                 item(key = "empty") {
-                    if (vm.filterCount > 0 || query.isNotBlank()) EmptyState("No departures match", "Try another week or clear the filters.", action = "Clear filters", onAction = { vm.clearFilters() })
-                    else EmptyState("Nothing here yet", "Pull the departures board again when you're back online.", action = "Retry", onAction = { vm.refresh() })
+                    val noun = categoryNoun(category)
+                    val refreshing by vm.refreshing.collectAsStateWithLifecycle()
+                    val offline = !nav.graph.connectivity.online.collectAsStateWithLifecycle().value
+                    when {
+                        refreshing -> Box(Modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
+                            androidx.compose.material3.CircularProgressIndicator(Modifier.size(24.dp), color = c.ink2, strokeWidth = 2.dp)
+                        }
+                        vm.filterCount > 0 || query.isNotBlank() -> EmptyState("No $noun match", if (category == "trips") "Try another week or clear the filters." else "Try another place or clear the filters.", action = "Clear filters", onAction = { vm.clearFilters() })
+                        offline -> EmptyState("You're offline", "Connect to see $noun.", action = "Retry", onAction = { vm.refresh() })
+                        else -> EmptyState("No $noun yet", "New ones are added every week.", action = "Refresh", onAction = { vm.refresh() })
+                    }
                 }
             } else {
-                item(key = "hero-h", contentType = "section") { SectionHeader("Leaving soon", trailing = "See all", trailingLink = { searchSheet = true }) }
+                item(key = "hero-h", contentType = "section") { SectionHeader(when (category) { "stays" -> "Places to stay"; "activities" -> "Things to do"; "rentals" -> "Rent for the road"; else -> "Leaving soon" }, trailing = "See all", trailingLink = { searchSheet = true }) }
                 item(key = "pager", contentType = "pager") {
                     val w = LocalConfiguration.current.screenWidthDp.dp
                     val pager = rememberPagerState { leaving.size }
@@ -211,7 +230,7 @@ fun ExploreScreen(nav: AppNav) {
                         // Density: ~78% of the width (max 300dp) for trips, ~62% for stays/activities/rentals, so the next card peeks.
                         pageSize = PageSize.Fixed(if (leaving.size > 1) (if (category == "trips") minOf(w * 0.78f, 300.dp) else w * 0.62f) else w - Gutter * 2), key = { leaving[it].slug }, verticalAlignment = Alignment.Top) { i ->
                         val t = leaving[i]
-                        TripCard(t, t.slug in saved, onSave = { vm.toggleSave(t.slug) }, onOpen = { nav.to(Routes.trip(t.slug)) }, onTake = { takeSeat(nav, t, "explore") })
+                        TripCard(t, t.slug in saved, onSave = { vm.toggleSave(t.slug) }, onOpen = { openTrip(nav, t) }, onTake = { takeSeat(nav, t, "explore") })
                     }
                 }
             }
@@ -239,9 +258,10 @@ fun ExploreScreen(nav: AppNav) {
             if (rest.isNotEmpty()) {
                 // One list, same as web: "Next few weeks" (dates already sorted soonest first).
                 item(key = "next-weeks", contentType = "section") {
-                    SectionHeader("Next few weeks", Modifier.padding(top = 12.dp), trailing = "All departures", trailingLink = { searchSheet = true })
+                    if (category == "trips") SectionHeader("Next few weeks", Modifier.padding(top = 12.dp), trailing = "All departures", trailingLink = { searchSheet = true })
+                    else SectionHeader("More ${categoryNoun(category)}", Modifier.padding(top = 12.dp))
                 }
-                items(rest, key = { "dep-" + it.slug }, contentType = { "departure" }) { t -> DepartureRow(t) { nav.to(Routes.trip(t.slug)) } }
+                items(rest, key = { "dep-" + it.slug }, contentType = { "departure" }) { t -> DepartureRow(t) { openTrip(nav, t) } }
             }
         }
         SearchDock(
@@ -352,12 +372,15 @@ fun TripCard(t: TripLite, saved: Boolean, onSave: () -> Unit, onOpen: () -> Unit
         Box(Modifier.fillMaxWidth().aspectRatio(16f / 10f).clip(RoundedCornerShape(PcTokens.radiusImage))) {
             ProgressiveImage(t.image, Modifier.fillMaxSize(), t.title)
             Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(56.dp).background(Brush.verticalGradient(listOf(Color.Transparent, Color(0x47111111)))))
-            DateChip(t.nextDeparture, Modifier.align(Alignment.TopStart).padding(10.dp))
+            if (!t.isListing) DateChip(t.nextDeparture, Modifier.align(Alignment.TopStart).padding(10.dp))
             GlassButton(if (saved) PcIcons.HeartFilled else PcIcons.Heart, if (saved) "Saved" else "Save", onSave, Modifier.align(Alignment.TopEnd).padding(4.dp), tint = if (saved) c.rose else c.ink)
             if (label != null) Text(label, style = Pc.type.label.copy(fontWeight = FontWeight.Bold), color = c.ink,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp).clip(CircleShape).background(c.raised.copy(alpha = 0.86f)).padding(horizontal = 10.dp, vertical = 5.dp))
         }
-        Row(Modifier.padding(horizontal = 6.dp).overlapUp(36.dp), verticalAlignment = Alignment.Top) {
+        if (t.isListing) Column(Modifier.padding(start = 6.dp, end = 6.dp, top = 10.dp)) {
+            Text(t.title, style = Pc.type.title2.copy(fontSize = 15.sp), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            t.place?.name?.let { Text(it, style = Pc.type.small.copy(fontSize = 12.5.sp), color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        } else Row(Modifier.padding(horizontal = 6.dp).overlapUp(36.dp), verticalAlignment = Alignment.Top) {
             RingMount {
                 SeatRing(ring, PcTokens.ringCard, spotsLabel = true)
             }
@@ -369,16 +392,17 @@ fun TripCard(t: TripLite, saved: Boolean, onSave: () -> Unit, onOpen: () -> Unit
         Column(Modifier.padding(start = 6.dp, end = 6.dp, top = 8.dp, bottom = 2.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 t.host?.let { Tag(it.name, TagKind.Verified, Modifier.weight(1f, fill = false)); Spacer(Modifier.width(10.dp)) }
-                Text(when { ring.full -> "Full"; ring.filled <= 0 -> "Be first in the circle"; else -> "${ring.filled} going" },
+                if (!t.isListing) Text(when { ring.full -> "Full"; ring.filled <= 0 -> "Be first in the circle"; else -> "${ring.filled} going" },
                     style = Pc.type.smallStrong.copy(fontSize = 12.sp), color = if (ring.full) c.full else c.ink2, modifier = Modifier.weight(1f), textAlign = TextAlign.End, maxLines = 1)
             }
             Spacer(Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.Bottom) {
                     Text(MoneyFormat.rupees(t.priceFromPaise), style = Pc.type.priceLarge.copy(fontSize = 17.sp), color = c.ink)
-                    Text("/person", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(start = 3.dp, bottom = 2.dp))
+                    Text("/${if (t.isListing) t.unit ?: "booking" else "person"}", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(start = 3.dp, bottom = 2.dp))
                 }
-                PcButton(if (ring.full) "Full" else "Grab a spot", onTake, kind = BtnKind.Quiet, height = BtnSmall, enabled = !ring.full)
+                if (t.isListing) PcButton("View", onOpen, kind = BtnKind.Quiet, height = BtnSmall)
+                else PcButton(if (ring.full) "Full" else "Grab a spot", onTake, kind = BtnKind.Quiet, height = BtnSmall, enabled = !ring.full)
             }
         }
     }
@@ -439,7 +463,7 @@ fun DepartureRow(t: TripLite, onClick: () -> Unit) {
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(t.title, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(listOfNotNull(Fmt.dowDayMonth(t.nextDeparture), Fmt.nights(t.durationDays).takeIf { t.durationDays > 0 }, t.place?.name?.substringBefore(',')).joinToString(" · "),
+                Text(if (t.isListing) t.place?.name ?: "" else listOfNotNull(Fmt.dowDayMonth(t.nextDeparture), Fmt.nights(t.durationDays).takeIf { t.durationDays > 0 }, t.place?.name?.substringBefore(',')).joinToString(" · "),
                     style = Pc.type.small, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.width(10.dp))
@@ -447,7 +471,8 @@ fun DepartureRow(t: TripLite, onClick: () -> Unit) {
             Spacer(Modifier.width(12.dp))
             Column(horizontalAlignment = Alignment.End) {
                 Text(MoneyFormat.rupees(t.priceFromPaise), style = Pc.type.price, color = c.ink)
-                Text(if (ring.full) "Full" else "${ring.total - ring.taken} open", style = Pc.type.small, color = if (ring.full) c.full else c.ink2)
+                if (t.isListing) Text("per ${t.unit ?: "booking"}", style = Pc.type.small, color = c.ink2)
+                else Text(if (ring.full) "Full" else "${ring.total - ring.taken} open", style = Pc.type.small, color = if (ring.full) c.full else c.ink2)
             }
         }
         Hairline()
@@ -507,7 +532,7 @@ fun SearchScreen(nav: AppNav) {
         }
         LazyColumn(Modifier.fillMaxSize()) {
             if (results.isEmpty()) item { EmptyState("No departures match", "Try a place name, or another category.") }
-            items(results, key = { it.slug }, contentType = { "departure" }) { t -> DepartureRow(t) { nav.to(Routes.trip(t.slug)) } }
+            items(results, key = { it.slug }, contentType = { "departure" }) { t -> DepartureRow(t) { openTrip(nav, t) } }
         }
     }
 }

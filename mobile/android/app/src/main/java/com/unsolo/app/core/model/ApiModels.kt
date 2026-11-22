@@ -92,7 +92,14 @@ data class TripLite(
     val seatsTotal: Int? = null,
     val host: UserLite? = null,
     val goingFaces: List<UserLite> = emptyList(),
-)
+    /** "trip" (default), or "stay" / "activity" / "rental": those open on the web at [webPath]. */
+    val kind: String = "trip",
+    /** Price unit for listings: "night", "person", "day". */
+    val unit: String? = null,
+    val webPath: String? = null,
+) {
+    val isListing: Boolean get() = webPath != null && kind != "trip"
+}
 
 @Immutable
 @Serializable
@@ -143,7 +150,29 @@ data class PollOption(val id: String, val label: String, val votes: Int = 0)
 
 @Immutable
 @Serializable
-data class Poll(val options: List<PollOption> = emptyList(), val myChoice: String? = null)
+data class Poll(val options: List<PollOption> = emptyList(), val myChoice: String? = null){
+    /** Your vote moved to [choice] (null = taken back), counts adjusted locally until the server answers. */
+    fun movedTo(choice: String?): Poll = copy(myChoice = choice, options = options.map { o ->
+        o.copy(votes = (o.votes - (if (o.id == myChoice) 1 else 0) + (if (o.id == choice) 1 else 0)).coerceAtLeast(0))
+    })
+}
+
+/** GET /places?q= : a suggestion for the place field ([detail] is the state or district). */
+@Immutable
+@Serializable
+data class PlaceHit(val name: String, val slug: String? = null, val lat: Double? = null, val lng: Double? = null, val detail: String? = null) {
+    fun toPlace() = Place(name, slug, lat, lng)
+}
+
+@Serializable
+data class PlacesResponse(val items: List<PlaceHit> = emptyList())
+
+/** PUT /posts/{id}/vote */
+@Serializable
+data class VoteRequest(val choice: String?)
+
+@Serializable
+data class VoteResponse(val poll: Poll)
 
 @Immutable
 @Serializable

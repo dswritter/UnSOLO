@@ -3,6 +3,7 @@ import { getApiContext } from '@/lib/api/context'
 import { ok, parseQuery, route } from '@/lib/api/http'
 import { decodeCursor, encodeCursor } from '@/lib/tribe/cursor'
 import { loadUpcomingTrips } from '@/lib/tribe/trips'
+import { loadServiceListings } from '@/lib/tribe/listings'
 
 const Q = z.object({
   q: z.string().max(80).optional(),
@@ -12,12 +13,13 @@ const Q = z.object({
   limit: z.coerce.number().int().min(1).max(40).default(20),
 })
 
-/** Hosted, bookable departures sorted by date. Stays/activities/rentals: see /hosts/[kind] (phase 2). */
+/** Trips: hosted, bookable departures by date. Stays/activities/rentals: public listings (they open on the web). */
 export const GET = route(async (req: Request) => {
   const ctx = await getApiContext(req)
   const q = parseQuery(req, Q)
-  if (q.category !== 'trips') return ok({ items: [], nextCursor: null }, { cache: ctx.user ? 'private' : 'public', req })
   const offset = decodeCursor(q.cursor)?.offset ?? 0
-  const { items, hasMore } = await loadUpcomingTrips(ctx, { q: q.q, month: q.month, limit: q.limit, offset })
+  const { items, hasMore } = q.category === 'trips'
+    ? await loadUpcomingTrips(ctx, { q: q.q, month: q.month, limit: q.limit, offset })
+    : await loadServiceListings(ctx, q.category, { q: q.q, limit: q.limit, offset })
   return ok({ items, nextCursor: hasMore ? encodeCursor({ offset: offset + q.limit }) : null }, { cache: ctx.user ? 'private' : 'public', req })
 })

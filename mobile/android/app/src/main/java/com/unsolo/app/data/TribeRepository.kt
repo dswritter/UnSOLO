@@ -231,8 +231,35 @@ class TribeRepository(
         analytics.track("post.comment", "post_detail")
     }
 
-    /** Polls are answered with a comment carrying `pollChoice` (contract: Comment.pollChoice). */
-    suspend fun vote(postId: String, option: PollOption) = addComment(postId, option.label, null, option.id)
+    private val voteJobs = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.Job>()
+
+    /**
+     * Tap an option to vote, another to change it, yours again to take it back. The card moves at
+     * once; one PUT /posts/{id}/vote follows a short pause (rapid taps send only the last), and its
+     * counts replace the local guess. Votes are never posted as replies.
+     */
+    suspend fun vote(postId: String, option: PollOption) {
+        if (!requireCanPost()) return
+        var choice: String? = null
+        var had = false
+        updatePost(postId) { p ->
+            val poll = p.poll ?: return@updatePost p
+            had = poll.myChoice != null
+            choice = if (poll.myChoice == option.id) null else option.id
+            p.copy(poll = poll.movedTo(choice))
+        } ?: return
+        val sent = choice
+        voteJobs.remove(postId)?.cancel()
+        voteJobs[postId] = scope.launch {
+            kotlinx.coroutines.delay(300)
+            when (val r = apiCall { api.vote(postId, VoteRequest(sent)) }) {
+                is ApiResult.Ok -> updatePost(postId) { it.copy(poll = r.value.poll) }
+                is ApiResult.Err -> { refreshPost(postId); events.emit(AppEvent.Message(r.message ?: "Your vote didn't go through. Try again.")) }
+                ApiResult.Offline -> { refreshPost(postId); events.emit(AppEvent.Message("You're offline. Your vote wasn't saved.")) }
+            }
+        }
+        analytics.track("poll.vote", "tribe", mapOf("changed" to had))
+    }
 
     suspend fun applyComment(clientId: String, c: Comment) {
         db.withTransaction {
@@ -344,22 +371,35 @@ class TribeRepository(
         if (mediaUris.isEmpty()) {
             outbox.enqueue(OutboxType.CREATE_POST, payload, targetId = localId, clientId = clientId)
         } else {
+            // Record the photos ("preparing") before the post is queued: otherwise an outbox run that
+            // starts while they are still compressing finds no photos and posts the text alone.
+            val purpose = if (draft.kind == PostKind.STORY) "story" else "post"
+            val dir = File(context.filesDir, "outbox_media").apply { mkdirs() }
+            val pending = mediaUris.take(6).mapIndexed { i, _ ->
+                PendingMediaEntity("$clientId:$i", clientId, i, File(dir, "${clientId}_$i.jpg").absolutePath, state = "preparing", purpose = purpose)
+            }
+            db.media().upsertAll(pending)
             outbox.enqueue(OutboxType.CREATE_POST, payload, targetId = localId, clientId = clientId, kick = false)
-            scope.launch { prepareUploads(clientId, localId, mediaUris, if (draft.kind == PostKind.STORY) "story" else "post") }
+            scope.launch { prepareUploads(clientId, localId, mediaUris.take(6), pending) }
         }
         return localId
     }
 
-    private suspend fun prepareUploads(clientId: String, localId: String, uris: List<Uri>, purpose: String) {
-        val dir = File(context.filesDir, "outbox_media").apply { mkdirs() }
-        val rows = uris.take(6).mapIndexedNotNull { i, uri ->
-            runCatching {
-                val out = File(dir, "${clientId}_$i.jpg")
-                compressor.compress(uri, out)
-                PendingMediaEntity("$clientId:$i", clientId, i, out.absolutePath, purpose = purpose)
-            }.getOrNull()
+    private suspend fun prepareUploads(clientId: String, localId: String, uris: List<Uri>, pending: List<PendingMediaEntity>) {
+        val rows = uris.mapIndexedNotNull { i, uri ->
+            val row = pending[i]
+            runCatching { compressor.compress(uri, File(row.localPath)); row.copy(state = "queued") }
+                .onFailure { android.util.Log.w("UnsoloUpload", "compress failed (${uri.scheme}://${uri.authority}): ${it.javaClass.simpleName}: ${it.message}") }
+                .getOrNull()
         }
-        if (rows.isEmpty()) { markLocalPostState(clientId, LocalState.FAILED); events.emit(AppEvent.Message("Couldn't read those photos.")); return }
+        if (rows.isEmpty()) {
+            // Keep the rows as failed so the queued post fails too, instead of going out as text only.
+            pending.forEach { db.media().progress(it.id, 0f, "failed") }
+            markLocalPostState(clientId, LocalState.FAILED); events.emit(AppEvent.Message("Couldn't read those photos.")); return
+        }
+        // Photos that couldn't be read are dropped; the post goes with the rest.
+        val dropped = pending.map { it.id } - rows.map { it.id }.toSet()
+        dropped.forEach { db.media().delete(it) }
         db.media().upsertAll(rows)
         // Point the optimistic post at the compressed copies (stable after the picker grant expires).
         updatePost(localId) { p -> p.copy(media = rows.map { Media(Uri.fromFile(File(it.localPath)).toString()) }) }

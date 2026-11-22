@@ -34,6 +34,11 @@ export type TripLite = {
   seatsTotal: number | null
   host: UserLite | null
   goingFaces: UserLite[]
+  /** Absent or 'trip' for hosted trips; stays, activities and rentals open on the web at [webPath]. */
+  kind?: 'trip' | 'stay' | 'activity' | 'rental'
+  /** Price unit for listings ("night", "person", "day"). */
+  unit?: string | null
+  webPath?: string
 }
 
 export type Post = {

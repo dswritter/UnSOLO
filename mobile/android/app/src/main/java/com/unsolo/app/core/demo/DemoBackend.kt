@@ -317,6 +317,17 @@ class DemoBackend(private val context: Context) {
                 ok(ReactionsResponse.serializer(), ReactionsResponse(post.reactions, post.myReactions))
             }
             p.size == 3 && p[0] == "posts" && p[2] == "save" -> requireUser(r) ?: run { updatePost(p[1]) { it.copy(viewer = it.viewer.copy(saved = m == "PUT")) }; noContent() }
+            p.size == 3 && p[0] == "posts" && p[2] == "vote" && m == "PUT" -> requirePhone(r) ?: run {
+                val b = body(VoteRequest.serializer(), r)
+                val post = updatePost(p[1]) { it.copy(poll = it.poll?.movedTo(b.choice)) } ?: return err(404, "not_found", "This post is no longer available")
+                post.poll?.let { ok(VoteResponse.serializer(), VoteResponse(it)) } ?: err(400, "bad_request", "This post has no poll")
+            }
+            p == listOf("places") -> {
+                val q = r.query["q"].orEmpty().trim()
+                val all = listOf("Manali" to "Himachal Pradesh", "Kasol" to "Himachal Pradesh", "Spiti Valley" to "Himachal Pradesh", "Rishikesh" to "Uttarakhand",
+                    "Leh" to "Ladakh", "Goa" to "Goa", "Jaisalmer" to "Rajasthan", "Alleppey" to "Kerala", "Hampi" to "Karnataka", "Ziro" to "Arunachal Pradesh")
+                ok(PlacesResponse.serializer(), PlacesResponse(all.filter { q.isEmpty() || it.first.contains(q, true) }.take(6).map { PlaceHit(it.first, it.first.lowercase().replace(' ', '-'), detail = it.second) }))
+            }
             p.size == 3 && p[0] == "posts" && p[2] == "comments" && m == "GET" -> ok(Page.serializer(Comment.serializer()), Page(comments[p[1]].orEmpty(), null))
             p.size == 3 && p[0] == "posts" && p[2] == "comments" && m == "POST" -> requirePhone(r) ?: run {
                 val b = body(CommentRequest.serializer(), r)

@@ -64,7 +64,8 @@ class UploadWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
         val g = applicationContext.graph
         val owner = inputData.getString(KEY_OWNER) ?: return Result.failure()
         val items = g.db.media().forOwner(owner)
-        val todo = items.filter { it.state != "done" }
+        // "preparing" rows are still being compressed; their upload is scheduled once they're ready.
+        val todo = items.filter { it.state != "done" && it.state != "preparing" }
         if (todo.isEmpty()) { g.outbox.kick(); return Result.success() }
         if (todo.size >= LARGE_BATCH) runCatching { setForeground(foreground(items.size - todo.size, items.size)) }
         for (m in todo) {

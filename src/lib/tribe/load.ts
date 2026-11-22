@@ -1,3 +1,4 @@
+import { loadPollVotes } from './poll-votes'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { hasVerifiedEmail } from '@/lib/auth/phone-login'
 import {
@@ -75,9 +76,7 @@ export async function loadPosts(db: SupabaseClient, ids: string[], viewer: Viewe
     viewer
       ? db.from('saved_posts').select('post_id').eq('user_id', viewer.id).in('post_id', ids)
       : Promise.resolve({ data: [] as Row[] }),
-    askIds.length
-      ? db.from('post_comments').select('post_id, author_id, poll_choice').in('post_id', askIds).not('poll_choice', 'is', null).eq('status', 'live')
-      : Promise.resolve({ data: [] as Row[] }),
+    loadPollVotes(db, askIds).then((votes) => ({ data: votes.map((v) => ({ post_id: v.postId, author_id: v.userId, poll_choice: v.choice })) as Row[] })),
     // Meeting points: RLS returns rows only for the organiser and approved members.
     viewer && planIds.length
       ? db.from('plan_private').select('post_id, meeting_point').in('post_id', planIds)

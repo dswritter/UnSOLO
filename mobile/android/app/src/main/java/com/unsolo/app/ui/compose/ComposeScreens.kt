@@ -42,6 +42,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.unsolo.app.AppGraph
 import com.unsolo.app.core.model.*
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.border
 import com.unsolo.app.data.PostDraft
 import com.unsolo.app.data.PostItem
 import com.unsolo.app.ui.Fmt
@@ -107,6 +110,36 @@ class ComposeViewModel(private val g: AppGraph, val kind: String, startWithPoll:
     var title by mutableStateOf("")
     var body by mutableStateOf("")
     var place by mutableStateOf("")
+    /** The suggestion picked for [place] (with slug / coordinates); cleared when the text is edited. */
+    var placePicked by mutableStateOf<Place?>(null)
+    var placeOpen by mutableStateOf(false)
+    var placeHits by mutableStateOf<List<PlaceHit>>(emptyList())
+    private var popularPlaces: List<PlaceHit> = emptyList()
+    private var placeJob: kotlinx.coroutines.Job? = null
+
+    fun onPlace(v: String) { place = v; placePicked = null; placeOpen = true; searchPlaces(v) }
+    fun onPlaceFocus(focused: Boolean) {
+        placeOpen = focused && placePicked == null
+        if (focused && placePicked == null) searchPlaces(place)
+    }
+    fun pickPlace(h: PlaceHit) { placeJob?.cancel(); place = h.name; placePicked = h.toPlace(); placeOpen = false }
+
+    /** Filters what we already have at once, then asks the server after a short pause (typing stays smooth). */
+    private fun searchPlaces(v: String) {
+        val q = v.trim()
+        val pool = (popularPlaces + placeHits).distinctBy { it.name.lowercase() }
+        placeHits = if (q.isEmpty()) popularPlaces.take(6) else pool.filter { it.name.contains(q, ignoreCase = true) }
+            .sortedBy { if (it.name.startsWith(q, ignoreCase = true)) 0 else 1 }.take(6)
+        placeJob?.cancel()
+        placeJob = viewModelScope.launch {
+            if (q.isNotEmpty()) kotlinx.coroutines.delay(220) else if (popularPlaces.isNotEmpty()) return@launch
+            val r = com.unsolo.app.core.net.apiCall { g.api.places(q) }
+            if (r is com.unsolo.app.core.net.ApiResult.Ok) {
+                if (q.isEmpty()) popularPlaces = r.value.items
+                if (place.trim() == q && placePicked == null) placeHits = r.value.items.take(6)
+            }
+        }
+    }
     var startsOn by mutableStateOf<LocalDate?>(null)
     var endsOn by mutableStateOf<LocalDate?>(null)
     var spots by mutableIntStateOf(4)
@@ -152,7 +185,7 @@ class ComposeViewModel(private val g: AppGraph, val kind: String, startWithPoll:
         kind = kind,
         title = title.trim().ifBlank { null },
         body = body.trim(),
-        place = (trip?.place ?: place.trim().takeIf { it.isNotEmpty() }?.let { Place(it) }),
+        place = (trip?.place ?: placePicked?.takeIf { it.name == place.trim() } ?: place.trim().takeIf { it.isNotEmpty() }?.let { Place(it) }),
         startsOn = startsOn?.toString(), endsOn = (endsOn ?: startsOn)?.toString(),
         spotsTotal = if (kind == PostKind.PLAN) spots else null,
         audience = if (kind == PostKind.PLAN) audience else null,
@@ -178,6 +211,26 @@ class ComposeViewModel(private val g: AppGraph, val kind: String, startWithPoll:
         )
     }
 
+    /**
+     * Copies picked photos into app storage straight away: the picker's read grant can lapse before
+     * the post is compressed and uploaded in the background, which left stories with no photo.
+     */
+    fun addPicked(context: android.content.Context, uris: List<Uri>) = viewModelScope.launch {
+        val dir = java.io.File(context.cacheDir, "picked").apply { mkdirs() }
+        for (u in uris) {
+            if (photos.size >= 6) break
+            val copy = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                runCatching {
+                    val f = java.io.File(dir, java.util.UUID.randomUUID().toString() + ".img")
+                    (context.contentResolver.openInputStream(u) ?: error("no stream")).use { input -> f.outputStream().use { input.copyTo(it) } }
+                    Uri.fromFile(f)
+                }.onFailure { android.util.Log.w("UnsoloUpload", "copy failed for ${u.scheme}://${u.authority}: ${it.message}") }.getOrNull()
+            }
+                        android.util.Log.i("UnsoloUpload", "picked ${u.scheme}://${u.authority} -> ${copy?.scheme}")
+            if (copy != null) photos += copy else g.events.emit(com.unsolo.app.data.AppEvent.Message("Couldn't read that photo. Try another."))
+        }
+    }
+
     fun publish(onDone: () -> Unit) {
         if (error != null || publishing) return
         publishing = true
@@ -195,8 +248,9 @@ fun ComposeScreen(kindArg: String, nav: AppNav) {
     val kind = if (isPoll) PostKind.ASK else kindArg
     val vm: ComposeViewModel = viewModel(key = "compose-$kindArg") { ComposeViewModel(nav.graph, kind, startWithPoll = isPoll) }
     val c = Pc.colors
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(6)) { uris ->
-        uris.forEach { if (vm.photos.size < 6 && it !in vm.photos) vm.photos += it }
+        vm.addPicked(ctx.applicationContext, uris)
     }
     var dates by remember { mutableStateOf(false) }
     var triedPublish by remember { mutableStateOf(false) }
@@ -260,12 +314,44 @@ private fun Field(label: String, modifier: Modifier = Modifier, onClick: (() -> 
 }
 
 @Composable
-private fun InlineInput(value: String, onValue: (String) -> Unit, placeholder: String, maxLength: Int, singleLine: Boolean = true, style: androidx.compose.ui.text.TextStyle = Pc.type.bodyStrong.copy(fontSize = 14.sp), keyboardType: KeyboardType = KeyboardType.Text) {
+private fun InlineInput(value: String, onValue: (String) -> Unit, placeholder: String, maxLength: Int, singleLine: Boolean = true, style: androidx.compose.ui.text.TextStyle = Pc.type.bodyStrong.copy(fontSize = 14.sp), keyboardType: KeyboardType = KeyboardType.Text, onFocus: ((Boolean) -> Unit)? = null) {
     val c = Pc.colors
     Box(Modifier.fillMaxWidth().defaultMinSize(minHeight = 26.dp), contentAlignment = Alignment.CenterStart) {
         if (value.isEmpty()) Text(placeholder, style = style.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium), color = c.ink3.copy(alpha = 0.72f))
         androidx.compose.foundation.text.BasicTextField(value, { if (it.length <= maxLength) onValue(it) }, singleLine = singleLine, textStyle = style.copy(color = c.ink),
-            cursorBrush = androidx.compose.ui.graphics.SolidColor(c.ink), keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = keyboardType), modifier = Modifier.fillMaxWidth())
+            cursorBrush = androidx.compose.ui.graphics.SolidColor(c.ink), keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = keyboardType),
+            modifier = Modifier.fillMaxWidth().then(if (onFocus != null) Modifier.onFocusChanged { onFocus(it.isFocused) } else Modifier))
+    }
+}
+
+/**
+ * Suggestions under a place field: a tap fills it (with the place's slug and coordinates). Popular
+ * places show on focus; matches narrow as you type, so most people pick instead of typing it all.
+ */
+@Composable
+private fun PlaceSuggestions(vm: ComposeViewModel) {
+    val c = Pc.colors
+    val focus = androidx.compose.ui.platform.LocalFocusManager.current
+    val hits = vm.placeHits
+    val show = vm.placeOpen && hits.isNotEmpty() && !(hits.size == 1 && hits[0].name.equals(vm.place.trim(), true))
+    // Keep the list above the keyboard: scroll it into view when it opens or grows.
+    val bring = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
+    LaunchedEffect(show, hits.size) { if (show) { kotlinx.coroutines.delay(200); runCatching { bring.bringIntoView() } } }
+    androidx.compose.animation.AnimatedVisibility(show, enter = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(120)) + androidx.compose.animation.expandVertically(androidx.compose.animation.core.tween(160)),
+        exit = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(90)) + androidx.compose.animation.shrinkVertically(androidx.compose.animation.core.tween(120))) {
+        Column(Modifier.fillMaxWidth().bringIntoViewRequester(bring).padding(top = 6.dp).clip(RoundedCornerShape(16.dp)).background(c.raised).border(1.dp, c.rule, RoundedCornerShape(16.dp)).padding(vertical = 4.dp)) {
+            if (vm.place.isBlank()) Text("Popular", style = Pc.type.label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.ink3, modifier = Modifier.padding(start = 14.dp, top = 6.dp, bottom = 2.dp))
+            hits.forEach { h ->
+                Row(Modifier.fillMaxWidth().clickable(onClickLabel = "Use ${h.name}") { vm.pickPlace(h); focus.clearFocus() }.defaultMinSize(minHeight = 48.dp).padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    PcIcon(PcIcons.Pin, null, size = 16.dp, tint = c.ink2); Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(h.name, style = Pc.type.bodyStrong, color = c.ink, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                        h.detail?.let { Text(it, style = Pc.type.small, color = c.ink2, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -286,9 +372,10 @@ private fun PlanForm(vm: ComposeViewModel, onDates: () -> Unit, onPhotos: () -> 
     Field("Where to?") {
         Row(verticalAlignment = Alignment.CenterVertically) {
             PcIcon(PcIcons.PinFilled, null, size = 16.dp, tint = c.ink2); Spacer(Modifier.width(6.dp))
-            InlineInput(vm.place, { vm.place = it }, "Spiti Valley", 80)
+            InlineInput(vm.place, { vm.onPlace(it) }, "Spiti Valley", 80, onFocus = vm::onPlaceFocus)
         }
     }
+    PlaceSuggestions(vm)
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Field("When", Modifier.weight(1.6f), onClick = onDates) {
             Text(vm.startsOn?.let { Fmt.range(it.toString(), (vm.endsOn ?: it).toString()) } ?: "Pick dates", style = Pc.type.bodyStrong.copy(fontSize = 14.sp), color = if (vm.startsOn == null) c.ink3 else c.ink, maxLines = 1)
@@ -374,7 +461,11 @@ private fun StoryForm(vm: ComposeViewModel, onPhotos: () -> Unit) {
                 if (sel) PcIcon(PcIcons.CheckCircleFilled, "Selected", size = 22.dp, tint = c.ink)
             }
         }
-        if (vm.trip == null) { Spacer(Modifier.height(4.dp)); BoxedInput(vm.place, { vm.place = it.take(80) }, "Or a place", leadingIcon = PcIcons.Pin) }
+        if (vm.trip == null) {
+            Spacer(Modifier.height(4.dp))
+            Box(Modifier.onFocusChanged { vm.onPlaceFocus(it.hasFocus) }) { BoxedInput(vm.place, { vm.onPlace(it.take(80)) }, "Or a place", leadingIcon = PcIcons.Pin) }
+            PlaceSuggestions(vm)
+        }
     }
     vm.trip?.let { t ->
         Column(Modifier.fillMaxWidth().fieldBox().padding(horizontal = 14.dp, vertical = 10.dp)) {
@@ -427,9 +518,10 @@ private fun AskForm(vm: ComposeViewModel, isPoll: Boolean) {
     Field("Place") {
         Row(verticalAlignment = Alignment.CenterVertically) {
             PcIcon(PcIcons.PinFilled, null, size = 16.dp, tint = c.ink2); Spacer(Modifier.width(6.dp))
-            InlineInput(vm.place, { vm.place = it }, "Kasol, Parvati Valley", 80)
+            InlineInput(vm.place, { vm.onPlace(it) }, "Kasol, Parvati Valley", 80, onFocus = vm::onPlaceFocus)
         }
     }
+    PlaceSuggestions(vm)
     Field("Details (optional)") { InlineInput(vm.body, { vm.body = it }, "Dates, budget, what you care about", 1500, singleLine = false, style = Pc.type.body.copy(fontSize = 14.sp)) }
     Text("No links or prices in answers. Hosts answer as people, with their HOST tag.", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(horizontal = 4.dp))
 }

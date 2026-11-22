@@ -200,7 +200,7 @@ export function PostDetailClient({ post: initial, comments: initialComments, off
               </div>
             )}
             {isPlan && post.estCostText && <p className="mt-4 text-sm text-muted-foreground">{post.estCostText}. No money is paid through UnSOLO for community plans.</p>}
-            {post.poll && <PollOptions post={post} signedIn={signedIn} demo={demo} onVote={async (choice, label) => { if (!(await addComment(`Voted: ${label}`, null, choice))) throw new Error('Your vote didn’t go through. Try again.') }} />}
+            {post.poll && <PollOptions post={post} signedIn={signedIn} demo={demo} />}
             {post.trip && <TripLinkCard trip={post.trip} className="mt-4" />}
 
             {isPlan && (

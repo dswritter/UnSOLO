@@ -38,6 +38,7 @@ interface ApiService {
     @HTTP(method = "DELETE", path = "devices", hasBody = true) suspend fun deleteDevice(@Body body: DeviceDeleteRequest): Response<Unit>
 
     // Explore
+    @GET("places") suspend fun places(@Query("q") q: String, @Query("limit") limit: Int = 6): PlacesResponse
     @GET("explore") suspend fun explore(
         @Query("q") q: String? = null,
         @Query("category") category: String? = null,
@@ -66,6 +67,7 @@ interface ApiService {
     @DELETE("posts/{id}/save") suspend fun unsave(@Path("id") id: String): Response<Unit>
     @GET("posts/{id}/comments") suspend fun comments(@Path("id") id: String, @Query("cursor") cursor: String? = null): Page<Comment>
     @POST("posts/{id}/comments") suspend fun comment(@Path("id") id: String, @Body body: CommentRequest): Comment
+    @PUT("posts/{id}/vote") suspend fun vote(@Path("id") id: String, @Body body: VoteRequest): VoteResponse
     @DELETE("comments/{id}") suspend fun deleteComment(@Path("id") id: String): Response<Unit>
     @POST("posts/{id}/join") suspend fun join(@Path("id") id: String, @Body body: JoinRequestBody): JoinResponse
     @DELETE("posts/{id}/join") suspend fun withdraw(@Path("id") id: String): Response<Unit>

@@ -68,6 +68,8 @@ class OutboxExecutorImpl(
     private suspend fun createPost(item: OutboxEntity, payload: JsonObject): ExecResult {
         val media = db.media().forOwner(item.clientId)
         if (media.any { it.state == "failed" }) return ExecResult.Fail("upload_failed")
+        // Still compressing: prepareUploads schedules the upload (and this post) when they're ready.
+        if (media.any { it.state == "preparing" }) return ExecResult.Wait
         if (media.any { it.state != "done" }) {
             Outbox.scheduleUpload(context, item.clientId)
             return ExecResult.Wait

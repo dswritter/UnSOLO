@@ -5,6 +5,7 @@ import type { ApiContext } from './context'
 export const LIMITS = {
   post: { windowSec: 86_400, newMax: 3, max: 10 },
   comment: { windowSec: 3_600, newMax: 20, max: 60 },
+  vote: { windowSec: 3_600, newMax: 120, max: 300 },
   join: { windowSec: 86_400, newMax: 10, max: 30 },
   report: { windowSec: 86_400, newMax: 20, max: 50 },
   upload: { windowSec: 3_600, newMax: 30, max: 120 },

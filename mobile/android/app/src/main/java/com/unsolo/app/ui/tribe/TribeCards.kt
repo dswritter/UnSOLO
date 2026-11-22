@@ -268,12 +268,12 @@ fun PollView(p: Post, onVote: (PollOption) -> Unit, modifier: Modifier = Modifie
         poll.options.forEach { o ->
             val mine = poll.myChoice == o.id
             val shape = RoundedCornerShape(14.dp)
-            val frac by animateFloatAsState(if (voted) o.votes / total.toFloat() else 0f, tween(if (reduce) 0 else 420), label = "bar")
+            val frac by animateFloatAsState(if (voted) o.votes / total.toFloat() else 0f, tween(if (reduce) 0 else 220), label = "bar")
             Box(
                 Modifier.fillMaxWidth().height(48.dp).clip(shape)
                     .background(if (voted) c.tonal else c.raised)
                     .border(if (mine) 2.dp else 1.5.dp, if (mine) c.ink else if (voted) Color.Transparent else c.rule, shape)
-                    .clickable(enabled = !voted, role = Role.RadioButton, onClickLabel = "Vote ${o.label}") { onVote(o) }
+                    .clickable(role = Role.RadioButton, onClickLabel = if (mine) "Take back your vote" else "Vote ${o.label}") { onVote(o) }
                     .semantics(mergeDescendants = true) { contentDescription = if (voted) "${o.label}, ${o.votes * 100 / total} percent${if (mine) ", your vote" else ""}" else "Vote ${o.label}" },
             ) {
                 if (voted) Box(Modifier.fillMaxHeight().fillMaxWidth(frac).background(c.ink.copy(alpha = if (mine) 0.16f else 0.08f)))
@@ -284,7 +284,7 @@ fun PollView(p: Post, onVote: (PollOption) -> Unit, modifier: Modifier = Modifie
                 }
             }
         }
-        Text(if (!voted) "Tap an option to vote · $sum votes" else "$sum votes · you voted", style = Pc.type.smallStrong, color = c.ink3, modifier = Modifier.padding(top = 2.dp))
+        Text(if (!voted) "Tap an option to vote · $sum votes" else "$sum ${if (sum == 1) "vote" else "votes"} · tap to change", style = Pc.type.smallStrong, color = c.ink3, modifier = Modifier.padding(top = 2.dp))
     }
 }
 

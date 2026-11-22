@@ -79,7 +79,10 @@ class ImageCompressor(private val context: Context) {
     suspend fun compress(uri: Uri, out: File, maxBytes: Int = 2_097_152, maxEdge: Int = 2048): CompressedImage = withContext(Dispatchers.IO) {
         val cr = context.contentResolver
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) } ?: throw IOException("Can't open image")
+        // A bounds-only decode always returns null (only [bounds] is filled), so check the stream, not the result:
+        // treating that null as "can't open" failed every photo and stories went out without them.
+        val stream = cr.openInputStream(uri) ?: throw IOException("Can't open image")
+        stream.use { BitmapFactory.decodeStream(it, null, bounds) }
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) throw IOException("Not an image")
         val orientation = runCatching {
             cr.openInputStream(uri)?.use { ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL) }

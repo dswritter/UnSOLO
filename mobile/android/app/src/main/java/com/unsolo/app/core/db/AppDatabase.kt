@@ -278,6 +278,7 @@ interface MediaDao {
     @Upsert suspend fun upsertAll(m: List<PendingMediaEntity>)
     @Query("UPDATE pending_media SET progress = :progress, state = :state WHERE id = :id") suspend fun progress(id: String, progress: Float, state: String)
     @Query("DELETE FROM pending_media WHERE ownerClientId = :owner") suspend fun deleteOwner(owner: String)
+    @Query("DELETE FROM pending_media WHERE id = :id") suspend fun delete(id: String)
 }
 
 @Dao

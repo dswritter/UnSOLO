@@ -97,7 +97,9 @@ Store tokens in the Android Keystore (EncryptedSharedPreferences) or the iOS Key
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
-| GET | `/explore?q=&category=trips\|stays\|activities\|rentals&month=YYYY-MM&cursor=&limit=20` | public | → `{ items: TripLite[], nextCursor }`, sorted by next departure |
+| GET | `/explore?q=&category=trips\|stays\|activities\|rentals&month=YYYY-MM&cursor=&limit=20` | public | → `{ items: TripLite[], nextCursor }`. Trips: sorted by next departure. Stays/activities/rentals: public listings as TripLite with `kind` (stay/activity/rental), `unit` (night/person/day) and `webPath` (`/listings/{category}/{slug}`, opened on the web); no departures or seats |
+| GET | `/places?q=&limit=8` | public | → `{ items: { name, slug, lat, lng, detail }[] }`: suggestions for the place field (our destinations, places in live posts, then OpenStreetMap; empty q = popular) |
+| PUT | `/posts/{id}/vote` `{ choice: "a".."d" \| null }` | verified contact | One vote per person per poll (post_poll_votes, migration 122), changed in place; null takes it back. → `{ poll }`. Votes are not replies. |
 | GET | `/trips/{slug}` | public | → `TripLite & { description, includes: string[], images: Media[], departures: [{ date, seatsLeft, seatsTotal }], seats: Seat[] (next departure; faces only for signed-in viewers), rating: { avg, count }, stories: Post[] /* show_on_trip_page */, planningCount /* "14 planning Spiti", only when ≥3 */ }` |
 | GET | `/my/trips` | user | → `{ upcoming: Booking[], plans: Post[] /* organiser or approved */, requested: Post[], past: Booking[] /* includes storyPrompt: bool */ }` |
 
