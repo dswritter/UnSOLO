@@ -3,6 +3,7 @@ import { ok, route } from '@/lib/api/http'
 import { loadPosts, loadViewer } from '@/lib/tribe/load'
 import { PACKAGE_LITE, toTripLite, todayIST } from '@/lib/tribe/models'
 import { LISTING_LITE, categoryForType, listingToTripLite } from '@/lib/tribe/listings'
+import { isTripDay, tripEndDate } from '@/lib/trips/tripDays'
 
 export const GET = route(async (req: Request) => {
   const ctx = await getApiContext(req)
@@ -17,7 +18,11 @@ export const GET = route(async (req: Request) => {
   if (error) throw error
   const roomFor = new Map((rooms ?? []).filter((r) => r.package_id).map((r) => [r.package_id as string, r.id as string]))
   const today = todayIST()
-  const { data: myStories } = await ctx.db.from('posts').select('trip_package_id').eq('author_id', user.id).eq('kind', 'story')
+  const [{ data: myStories }, { data: myReviews }] = await Promise.all([
+    ctx.db.from('posts').select('trip_package_id').eq('author_id', user.id).eq('kind', 'story'),
+    ctx.db.from('reviews').select('booking_id').eq('user_id', user.id),
+  ])
+  const reviewed = new Set((myReviews ?? []).map((r) => r.booking_id as string))
   const storied = new Set((myStories ?? []).map((s) => s.trip_package_id as string))
   const dateOf = (b: Record<string, unknown>) => String(b.travel_date ?? b.check_in_date ?? '')
   const shape = (b: Record<string, unknown>) => {
@@ -32,6 +37,18 @@ export const GET = route(async (req: Request) => {
       trip: b.package ? toTripLite(b.package as Record<string, unknown>) : listingToTripLite(b.listing as Record<string, unknown>, categoryForType((b.listing as Record<string, unknown>).type), null),
       chatRoomId: b.package_id ? roomFor.get(b.package_id as string) ?? null : null,
       storyPrompt: !!b.package_id && dateOf(b) < today && !storied.has(b.package_id as string),
+      ...(() => {
+        const days = Number((b.package as Record<string, unknown> | null)?.duration_days ?? 1)
+        const end = b.package && dateOf(b) ? tripEndDate(dateOf(b), days) : null
+        return {
+          endDate: end,
+          /** On the trip today (start day to the day after it ends): SOS, live location, trip pack. */
+          onTrip: !!b.package && isTripDay(dateOf(b), days, today),
+          /** Over, not reviewed yet: show "Review this trip". */
+          canReview: !!b.package && !!end && end < today && ['confirmed', 'completed'].includes(String(b.status)) && !reviewed.has(String(b.id)),
+          reviewed: reviewed.has(String(b.id)),
+        }
+      })(),
     }
   }
   const all = ((bookings ?? []) as Record<string, unknown>[]).filter((b) => b.package || b.listing).sort((a, b) => dateOf(a).localeCompare(dateOf(b)))
@@ -40,9 +57,9 @@ export const GET = route(async (req: Request) => {
   const requestedIds = (memberships ?? []).filter((m) => m.state === 'requested').map((m) => m.post_id as string)
   const [plans, requested] = await Promise.all([loadPosts(ctx.db, approvedIds, viewer), loadPosts(ctx.db, requestedIds, viewer)])
   return ok({
-    upcoming: all.filter((b) => dateOf(b) >= today).map(shape),
+    upcoming: all.filter((b) => dateOf(b) >= today || (b.package && isTripDay(dateOf(b), Number((b.package as Record<string, unknown>).duration_days ?? 1), today))).map(shape),
     plans: plans.filter((p) => p.status === 'live'),
     requested,
-    past: all.filter((b) => dateOf(b) < today).reverse().map(shape),
+    past: all.filter((b) => dateOf(b) < today && !(b.package && isTripDay(dateOf(b), Number((b.package as Record<string, unknown>).duration_days ?? 1), today))).reverse().map(shape),
   })
 })

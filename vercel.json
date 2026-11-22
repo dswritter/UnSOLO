@@ -1,12 +1,29 @@
 {
   "framework": "nextjs",
-  "regions": ["bom1"],
+  "regions": [
+    "bom1"
+  ],
   "redirects": [
     {
       "source": "/:path*",
-      "has": [{ "type": "host", "value": "www.unsolo.in" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "www.unsolo.in"
+        }
+      ],
       "destination": "https://unsolo.in/:path*",
       "permanent": true
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/trips",
+      "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/tribe",
+      "schedule": "0 4 * * *"
     }
   ]
 }

@@ -6,7 +6,7 @@ import { UPLOAD_MAX_IMAGE_BYTES } from '@/lib/constants'
 
 export const runtime = 'nodejs'
 
-const FOLDERS = { post: 'tribe-posts', story: 'status-stories', avatar: 'avatars', host: 'host-trips' } as const
+const FOLDERS = { post: 'tribe-posts', story: 'status-stories', avatar: 'avatars', host: 'host-trips', review: 'reviews' } as const
 
 /**
  * Image upload for all clients. Clients compress to ≤ 2 MB / 2048 px first (see /config);

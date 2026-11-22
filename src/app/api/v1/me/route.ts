@@ -13,7 +13,7 @@ async function me(req: Request) {
   const user = requireUser(ctx)
   const [{ data: p }, { data: priv }, prefs, unreadN, unreadMessages] = await Promise.all([
     ctx.db.from('profiles').select(`${PROFILE_LITE}, role, bio, date_of_birth, phone_number, status_text, status_visibility, location, instagram_url, website_url, username_changed_at, trips_private, states_private, phone_public`).eq('id', user.id).single(),
-    ctx.db.from('profile_private').select('gender, home_city').eq('user_id', user.id).maybeSingle(),
+    ctx.db.from('profile_private').select('gender, home_city, emergency_name, emergency_phone').eq('user_id', user.id).maybeSingle(),
     loadPreferences(ctx.db, user.id),
     ctx.db.from('notifications').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('is_read', false),
     countUnreadMessages(ctx.db, user.id),
@@ -30,6 +30,8 @@ async function me(req: Request) {
       website: (p?.website_url as string | null) ?? null,
       /** When you can next change your username (40 days after the last change); null = now. */
       usernameChangeAfter: usernameChangeAfter(p?.username_changed_at as string | null),
+      /** Told by SMS when you raise an SOS on a trip. Only you see it. */
+      emergencyName: (priv?.emergency_name as string | null) ?? null, emergencyPhone: (priv?.emergency_phone as string | null) ?? null,
       tripsPrivate: p?.trips_private === true, statesPrivate: p?.states_private === true, phonePublic: p?.phone_public === true,
     },
     role,
@@ -61,6 +63,9 @@ const Patch = z.object({
   tripsPrivate: z.boolean().optional(),
   statesPrivate: z.boolean().optional(),
   phonePublic: z.boolean().optional(),
+  emergencyName: z.string().trim().max(80).nullable().optional(),
+  /** Indian mobile, 10 digits (a +91 prefix is fine); empty clears it. */
+  emergencyPhone: z.string().trim().max(20).nullable().optional(),
   name: z.string().trim().min(1).max(80).optional(),
   bio: z.string().trim().max(500).optional(),
   gender: z.enum(['woman', 'man', 'nonbinary', 'prefer_not']).nullable().optional(),
@@ -137,6 +142,12 @@ export const PATCH = route(async (req: Request) => {
     priv.gender = b.gender
   }
   if (b.homeCity !== undefined) priv.home_city = b.homeCity
+  if (b.emergencyName !== undefined) priv.emergency_name = b.emergencyName || null
+  if (b.emergencyPhone !== undefined) {
+    const d = (b.emergencyPhone ?? '').replace(/\D/g, '').replace(/^(91|0)(?=\d{10}$)/, '')
+    if (d && !/^[6-9]\d{9}$/.test(d)) throw new ApiError('bad_request', 'Use a 10-digit Indian mobile number', { field: 'emergencyPhone' })
+    priv.emergency_phone = d ? `+91${d}` : null
+  }
   const round = (v: number | null | undefined) => (v == null ? v : Math.round(v * 100) / 100) // ~1 km: never store precise location
   const sharingLocation = b.homeLat != null && b.homeLng != null
   if (b.homeLat !== undefined) priv.home_lat = round(b.homeLat)

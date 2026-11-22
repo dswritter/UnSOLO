@@ -187,6 +187,28 @@ Chat covers trip groups, plan groups, community rooms and DMs. It reuses the exi
 | POST | `/admin/reports/{id}/action` | staff | `{ action: "hide"\|"remove"\|"restore"\|"warn"\|"mute"\|"suspend"\|"ban"\|"dismiss", note }` → `{ state }` |
 | GET | `/admin/analytics?days=30` | staff (analytics) | → the `admin_analytics_overview` JSON |
 
+### Trip safety, alerts and maps (migration 124)
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET | `/sos` | user | → `{ onTrip, trips: { bookingId, title, slug, start, end }[], emergencyContact: { name, phone } \| null, supportWhatsapp }`: show the SOS button when `onTrip` |
+| POST | `/sos` `{ lat?, lng?, accuracy?, note?, bookingId? }` | user (6/h) | Raises an alert: team notified (in-app + email to `SOS_ALERT_EMAIL`), host notified, host and emergency contact texted when `TWOFACTOR_SOS_TEMPLATE` + `TWOFACTOR_SENDER_ID` are set → `{ id, notified, trip, host: { name, phone }, emergencyContact, supportWhatsapp, message }` (the phone also offers call / WhatsApp / SMS with `message`) |
+| PUT | `/sos/{id}` `{ lat?, lng?, accuracy?, status?: "safe" }` | owner | Newer location, or "I'm safe" (closes it, team told) |
+| GET | `/chats/{roomId}/live-location` | member | → `{ items: { user, lat, lng, accuracy, startedAt, updatedAt, expiresAt, mine }[] }` (active only) |
+| PUT | `/chats/{roomId}/live-location` `{ lat, lng, accuracy?, minutes? }` | member | Start (needs `minutes` 15–480; posts a line in the group) or update a live share |
+| DELETE | `/chats/{roomId}/live-location` | member | Stop sharing |
+| PUT/DELETE | `/trips/{slug}/save` | user | Save / unsave a trip on the server (price-drop and nearly-full alerts) |
+| GET | `/me/saved-trips` | user | → `{ slugs }` |
+| POST | `/me/saved-trips` `{ slugs }` | user | Adds trips saved on a device before it synced (never removes) |
+| GET | `/buddies` | user | → `{ items: { user, score, reasons: string[], trip: { slug, title } \| null, planId }[] }`: same departure, same place ±7 days, same saved trips (+ similar budget) |
+| GET | `/explore/map?category=all\|trips\|stays\|activities\|rentals\|plans` | public | → `{ pins: { kind: trip\|stay\|activity\|rental\|plan, id, slug?, postId?, title, place, lat, lng, priceFromPaise?, unit?, date?, seatsLeft?, spotsLeft?, image }[] }` (OpenStreetMap tiles on clients) |
+| POST | `/reviews` `{ bookingId, ratingDestination 1–5, ratingExperience 1–5, title?, body?, photos: url[] ≤6 }` | owner, trip over | One per booking; photos via `/uploads` purpose `review` |
+| GET | `/my/trips/{bookingId}/pack` | owner | Offline trip pack → `{ bookingId, status, confirmationCode, guests, startDate, endDate, departureTime, returnTime, totalPaise, paidPaise, balancePaise, specialRequests, trip, description, includes, cancellationPolicy, host: { user, phone }, travellers, chatRoomId, support: { whatsapp, email }, helplines: { label, phone }[], generatedAt }` |
+
+`GET /my/trips` bookings now also carry `endDate`, `onTrip`, `canReview`, `reviewed`; trips under way stay in `upcoming`. `GET /trips/{slug}` adds `reviews: { id, rating, title, body, photos: Media[], createdAt, author }[]` (photos first). `PATCH /me` takes `emergencyName`, `emergencyPhone` (10-digit Indian mobile); `GET /me` returns them.
+
+Daily cron `GET /api/cron/trips` (Vercel Cron, needs `CRON_SECRET`): price drop and ≤3 spots alerts on saved trips (`trip_alert`), "How was {trip}?" 1–3 days after it ends (`review_request`, link `/review/{bookingId}`), geocodes destinations for the map.
+
 ## Standard analytics events
 
 | Event | Props |

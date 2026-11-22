@@ -8,6 +8,8 @@ export const LIMITS = {
   vote: { windowSec: 3_600, newMax: 120, max: 300 },
   join: { windowSec: 86_400, newMax: 10, max: 30 },
   report: { windowSec: 86_400, newMax: 20, max: 50 },
+  sos: { windowSec: 3_600, newMax: 6, max: 6 },
+  location: { windowSec: 3_600, newMax: 240, max: 240 },
   upload: { windowSec: 3_600, newMax: 30, max: 120 },
   message: { windowSec: 60, newMax: 20, max: 40 },
   events: { windowSec: 60, newMax: 30, max: 60 },
