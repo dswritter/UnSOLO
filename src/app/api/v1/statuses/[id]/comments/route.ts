@@ -5,6 +5,8 @@ import { enforceRateLimit } from '@/lib/api/rate-limit'
 import { screenText } from '@/lib/moderation/screen'
 import { PROFILE_LITE, toUserLite } from '@/lib/tribe/models'
 import { visibleStory } from '@/lib/statusStories/access'
+import { notifyCommentMentions } from '@/lib/profile/mentions'
+import { dispatchPendingPushes } from '@/lib/push/dispatch'
 
 type Ctx = { params: Promise<{ id: string }> }
 type Row = Record<string, unknown>
@@ -39,6 +41,25 @@ export const POST = route(async (req: Request, { params }: Ctx) => {
   if (error) throw error
   if (story.authorId !== user.id) {
     await svc.rpc('create_notification', { p_user_id: story.authorId, p_type: 'story_comment', p_title: 'New comment on your story', p_body: s.text.slice(0, 140), p_link: '/' })
+  }
+  // @username in the comment: told only if they can see the story (followers-only stories: followers).
+  if (s.text.includes('@')) {
+    const [{ data: me }, { data: st }, { data: owner }] = await Promise.all([
+      svc.from('profiles').select('full_name, username').eq('id', user.id).maybeSingle(),
+      svc.from('status_stories').select('audience').eq('id', id).maybeSingle(),
+      svc.from('profiles').select('username').eq('id', story.authorId).maybeSingle(),
+    ])
+    const name = String(me?.full_name || me?.username || 'Someone')
+    const followersOnly = (st?.audience as { mode?: string } | null)?.mode === 'followers'
+    const mentioned = await notifyCommentMentions(svc, {
+      author: { id: user.id, name }, text: s.text, type: 'story_mention', title: `${name} mentioned you on a story`,
+      link: owner?.username ? `/profile/${owner.username}` : '/', skip: [story.authorId],
+      onlyAmong: followersOnly ? async (ids) => {
+        const { data: f } = await svc.from('follows').select('follower_id').eq('following_id', story.authorId).in('follower_id', ids)
+        return ((f ?? []) as { follower_id: string }[]).map((r) => String(r.follower_id))
+      } : undefined,
+    }).catch(() => [] as string[])
+    if (mentioned.length || story.authorId !== user.id) await dispatchPendingPushes({ userIds: [...mentioned, ...(story.authorId !== user.id ? [story.authorId] : [])], limit: 20 }).catch(() => undefined)
   }
   return ok(shape(data as Row), { status: 201 })
 })

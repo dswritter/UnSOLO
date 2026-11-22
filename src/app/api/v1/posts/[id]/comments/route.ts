@@ -8,6 +8,7 @@ import { loadComments } from '@/lib/tribe/load'
 import { PROFILE_LITE, toUserLite } from '@/lib/tribe/models'
 import { dispatchPendingPushes } from '@/lib/push/dispatch'
 import { trackServerEvent } from '@/lib/analytics/server'
+import { notifyCommentMentions } from '@/lib/profile/mentions'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -77,6 +78,16 @@ export const POST = route(async (req: Request, { params }: Ctx) => {
   }
   after(async () => {
     const notify = [post.author_id as string, ...(parentAuthor ? [parentAuthor] : [])].filter((u) => u !== user.id)
+    // @username in the comment: those people hear about it too (not the ones already told above).
+    if (s.text.includes('@')) {
+      const { data: me } = await svc.from('profiles').select('full_name, username').eq('id', user.id).maybeSingle()
+      const name = String(me?.full_name || me?.username || 'Someone')
+      const mentioned = await notifyCommentMentions(svc, {
+        author: { id: user.id, name }, text: s.text, type: 'comment_mention', title: `${name} mentioned you in a comment`,
+        link: `/tribe/p/${id}`, skip: notify, metadata: { post_id: id },
+      }).catch(() => [] as string[])
+      notify.push(...mentioned)
+    }
     await dispatchPendingPushes({ userIds: notify, limit: 20 })
     await trackServerEvent(ctx, 'post.comment', {})
   })

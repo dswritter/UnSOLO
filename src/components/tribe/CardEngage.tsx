@@ -10,6 +10,7 @@ import { useTextDraft } from '@/lib/drafts'
 import { useAuth } from '@/components/layout/AuthProvider'
 import type { Comment, Post, UserLite } from '@/lib/tribe/models'
 import { ReactionBar } from './ReactionBar'
+import { MentionSuggest } from './MentionSuggest'
 import { CommentRow } from './CommentRow'
 
 const SHOWN = 3
@@ -142,9 +143,10 @@ function InlineComments({ post, signedIn, demo, onAdded }: { post: Post; signedI
           <button type="button" className="pc-link" onClick={() => { setReplyTo(null); setBody(body.replace(/^@\S+\s/, '')) }}>Cancel</button>
         </div>
       )}
+      <div className="mt-1.5"><MentionSuggest value={body} onChange={setBody} inputRef={inputRef} signedIn={signedIn} /></div>
       <form className="mt-1.5 flex items-end gap-2" onSubmit={send}>
         <textarea ref={inputRef} rows={1} value={body} maxLength={2000} className="fc-composer-input" aria-label={isAsk ? 'Your answer' : 'Your reply'}
-          placeholder={isAsk ? 'Share what you know…' : 'Add a reply…'}
+          placeholder={isAsk ? 'Share what you know… use @ to tag' : 'Add a reply… use @ to tag'}
           onChange={(e) => { setBody(e.target.value); e.target.style.height = 'auto'; e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px` }}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send() } }} />
         {signedIn

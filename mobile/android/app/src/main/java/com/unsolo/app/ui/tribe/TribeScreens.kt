@@ -414,7 +414,7 @@ fun PostDetailScreen(id: String, nav: AppNav) {
         when {
             isPlan -> PlanBottomBar(p, requests.count { it.state == "requested" }, onJoin = { if (nav.requirePhone()) joinSheet = true }, onWithdraw = { vm.withdraw() },
                 onShare = { vm.share(p); nav.share("Join my plan on UnSOLO: https://unsolo.in/tribe/p/${p.id}") }, onChat = { nav.to(Routes.INBOX) })
-            else -> CommentBar(me?.user, replyTo, onCancelReply = { replyTo = null }, placeholder = if (p.kind == PostKind.ASK) "Write an answer…" else "Add a comment…") { body ->
+            else -> CommentBar(me?.user, replyTo, nav.graph.statuses, onCancelReply = { replyTo = null }, placeholder = if (p.kind == PostKind.ASK) "Write an answer…" else "Add a comment…") { body ->
                 if (nav.requirePhone()) { vm.comment(body, replyTo?.id); replyTo = null }
             }
         }
@@ -603,7 +603,7 @@ private fun CommentRow(cm: Comment, p: Post, meId: String?, pending: Boolean, on
                     Spacer(Modifier.width(6.dp))
                     Text(if (pending) "sending…" else Fmt.ago(cm.createdAt), style = Pc.type.label, color = c.ink3)
                 }
-                Text(cm.body, style = Pc.type.body.copy(fontSize = 12.sp), color = c.ink)
+                Text(mentionAnnotated(cm.body) { u -> onAuthor(UserLite(id = "", username = u)) }, style = Pc.type.body.copy(fontSize = 12.sp), color = c.ink)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (!reply) CommentAction("Reply") { onReply(cm) }
@@ -674,11 +674,13 @@ private fun PlanBottomBar(p: Post, waiting: Int, onJoin: () -> Unit, onWithdraw:
 
 /** Comment composer pinned at the bottom, above the keyboard. */
 @Composable
-private fun CommentBar(me: UserLite?, replyTo: Comment?, onCancelReply: () -> Unit, placeholder: String, onSend: (String) -> Unit) {
+private fun CommentBar(me: UserLite?, replyTo: Comment?, statuses: com.unsolo.app.data.StatusRepository, onCancelReply: () -> Unit, placeholder: String, onSend: (String) -> Unit) {
     val c = Pc.colors
     var text by rememberSaveable { mutableStateOf("") }
     Column(Modifier.fillMaxWidth().background(c.raised.copy(alpha = 0.97f)).navigationBarsPadding().imePadding()) {
         Hairline()
+        // Type @ to mention someone; they get a notification.
+        MentionPicker(text, statuses, { text = it })
         if (replyTo != null) Row(Modifier.padding(start = Gutter, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Replying to ${replyTo.author.firstName}", style = Pc.type.label, color = c.ink2, modifier = Modifier.weight(1f))
             IconTap(PcIcons.Close, "Cancel reply", onCancelReply, iconSize = 18.dp)

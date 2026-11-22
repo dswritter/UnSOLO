@@ -18,6 +18,7 @@ import { SeatRing } from './SeatRing'
 import { Sheet } from './Sheet'
 import { CommentRow } from './CommentRow'
 import { AuthorRow, Avatar, PlanFacts, TripLinkCard, WomenTag, planRing } from './PostCard'
+import { MentionSuggest } from './MentionSuggest'
 import { ago, initials, rupees } from './format'
 
 const REASONS = [
@@ -433,6 +434,7 @@ function CommentComposer({ postId, signedIn, me, isAsk, replyTo, inputRef, onCan
           <button type="button" className="pc-link" onClick={() => { onCancelReply(); setPrefilledFor(null); setBody(body.replace(/^@\S+\s/, '')) }}>Cancel</button>
         </div>
       )}
+      <MentionSuggest value={body} onChange={setBody} inputRef={inputRef} signedIn={signedIn} />
       <form className="flex items-end gap-2" onSubmit={submit}>
         {onBack
           ? <button type="button" className="pc-iconbtn" aria-label="Back to join" onClick={onBack}><X className="h-5 w-5" /></button>

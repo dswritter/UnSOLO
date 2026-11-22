@@ -379,6 +379,7 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
         }
         // Comment bar
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().imePadding().padding(horizontal = 12.dp, vertical = 10.dp)) {
+            if (typing) MentionSuggestions(draft, nav) { start, u -> draft = (draft.substring(0, start) + "@${u.username} ").take(500) }
             if (own && !typing) Text("Disappears ${expiresIn(item.expiresAt)} · saved on this phone", style = Pc.type.label, color = Color.White.copy(alpha = 0.7f), modifier = Modifier.padding(start = 6.dp, bottom = 6.dp))
             Row(Modifier.fillMaxWidth().clip(CircleShape).border(1.dp, Color.White.copy(alpha = 0.55f), CircleShape).background(Color.Black.copy(alpha = 0.25f))
                 .padding(start = 18.dp, end = 6.dp).heightIn(min = 46.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -511,14 +512,15 @@ private fun StatusCommentsSheet(item: StatusItem, own: Boolean, nav: AppNav, onD
                         Avatar(cm.author, 30.dp); Spacer(Modifier.width(10.dp))
                         Column {
                             Row { Text(cm.author.firstName, style = Pc.type.smallStrong, color = c.ink); Text("  ${Fmt.ago(cm.createdAt)}", style = Pc.type.label, color = c.ink3) }
-                            Text(cm.body, style = Pc.type.body, color = c.ink)
+                            Text(mentionAnnotated(cm.body) { u -> onDismiss(); nav.to(Routes.profile(u)) }, style = Pc.type.body, color = c.ink)
                         }
                     }
                 }
             }
         }
+        MentionPicker(text, repo, { text = it.take(500) })
         Row(Modifier.padding(horizontal = Gutter, vertical = 12.dp).imePadding(), verticalAlignment = Alignment.CenterVertically) {
-            BoxedInput(text, { text = it.take(500) }, "Add a comment…", Modifier.weight(1f))
+            BoxedInput(text, { text = it.take(500) }, "Add a comment… (@ to mention)", Modifier.weight(1f))
             Spacer(Modifier.width(8.dp))
             PcButton("Send", {
                 if (!nav.requirePhone()) return@PcButton

@@ -77,3 +77,36 @@ export async function notifyStoryMentions(svc: SupabaseClient, author: { id: str
   })))
   return ids.length
 }
+
+/**
+ * Tells people @mentioned in a comment. Skips you, anyone in [skip] (already notified, e.g. the
+ * post's author), anyone who blocked you, and — when [onlyAmong] is given — anyone outside it
+ * (people who can't see the thing). Returns who was told, so the caller can push to them.
+ */
+export async function notifyCommentMentions(svc: SupabaseClient, o: {
+  author: { id: string; name: string }
+  text: string
+  type: string
+  title: string
+  link: string
+  skip?: string[]
+  onlyAmong?: (ids: string[]) => Promise<string[]>
+  metadata?: Record<string, unknown>
+}): Promise<string[]> {
+  const names = extractMentions(o.text)
+  if (!names.length) return []
+  const { data } = await svc.from('profiles').select('id').in('username', names)
+  const skip = new Set([o.author.id, ...(o.skip ?? [])])
+  let ids = ((data ?? []) as Row[]).map((r) => String(r.id)).filter((id) => !skip.has(id))
+  if (!ids.length) return []
+  const { data: blocks } = await svc.from('user_blocks').select('blocker_id, blocked_id')
+    .or(`and(blocked_id.eq.${o.author.id},blocker_id.in.(${ids.join(',')})),and(blocker_id.eq.${o.author.id},blocked_id.in.(${ids.join(',')}))`)
+  const blocked = new Set(((blocks ?? []) as Row[]).flatMap((b) => [String(b.blocker_id), String(b.blocked_id)]))
+  ids = ids.filter((id) => !blocked.has(id))
+  if (o.onlyAmong && ids.length) ids = await o.onlyAmong(ids)
+  await Promise.all(ids.map((id) => svc.rpc('create_notification', {
+    p_user_id: id, p_type: o.type, p_title: o.title, p_body: o.text.slice(0, 140), p_link: o.link,
+    p_metadata: { actor_id: o.author.id, category: 'replies', ...(o.metadata ?? {}) },
+  })))
+  return ids
+}
