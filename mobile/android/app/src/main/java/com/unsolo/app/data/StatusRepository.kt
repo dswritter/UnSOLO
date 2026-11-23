@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.drop
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import okhttp3.MediaType.Companion.toMediaType
@@ -48,6 +50,8 @@ private class ProgressBody(private val inner: RequestBody, private val onProgres
     }
 }
 
+private const val KEY_RAIL = "status_rail"
+
 /** A story being sent in the background: [progress] 0..1 across all photos; [error] once it failed (tap to retry). */
 data class StoryUpload(val progress: Float, val photos: Int, val error: String? = null)
 
@@ -77,6 +81,25 @@ class StatusRepository(
     val upload: StateFlow<StoryUpload?> = _upload.asStateFlow()
     private var lastShare: Triple<List<Uri>, String?, String>? = null
     private var shareJob: kotlinx.coroutines.Job? = null
+
+    init {
+        // Show the stories row from the phone at once on launch (minus any that have expired since),
+        // then the server's copy replaces it. Every change is saved back, so seen marks and
+        // reactions survive a restart too.
+        scope.launch {
+            val saved = runCatching { db.cache().getAs(KEY_RAIL, StatusesResponse.serializer()) }.getOrNull()?.authors.orEmpty()
+            val now = System.currentTimeMillis()
+            val live = saved.mapNotNull { a ->
+                val items = a.items.filter { i -> runCatching { java.time.Instant.parse(i.expiresAt).toEpochMilli() > now }.getOrDefault(true) }
+                if (items.isEmpty()) null else a.copy(items = items, unseen = items.any { !it.seen })
+            }
+            if (_rail.value.isEmpty() && live.isNotEmpty()) _rail.value = live
+            @OptIn(kotlinx.coroutines.FlowPreview::class)
+            _rail.drop(1).debounce(400).collect { r ->
+                runCatching { db.cache().putAs(KEY_RAIL, StatusesResponse.serializer(), StatusesResponse(r)) }
+            }
+        }
+    }
 
     suspend fun refresh(): ApiResult<Unit> {
         val r = apiCall { api.statuses() }
@@ -314,7 +337,7 @@ class StatusRepository(
         runCatching { indexFile.writeText(AppJson.encodeToString(archiveS, _archive.value)) }
     }
 
-    fun clear() { _rail.value = emptyList() }
+    fun clear() { _rail.value = emptyList(); scope.launch { runCatching { db.cache().delete(KEY_RAIL) } } }
 
     companion object { const val MAX_ARCHIVE = 200 }
 }
