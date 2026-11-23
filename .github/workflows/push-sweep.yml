@@ -1,0 +1,18 @@
+# Sends any push notification that wasn't delivered inline (DB-trigger rows, retries).
+# Needs repository secret CRON_SECRET (same value as on Vercel).
+name: Push sweep
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Call /api/cron/push
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then echo "CRON_SECRET secret not set"; exit 0; fi
+          curl -fsS --max-time 90 -H "Authorization: Bearer $CRON_SECRET" https://unsolo.in/api/cron/push

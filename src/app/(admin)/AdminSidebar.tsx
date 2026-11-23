@@ -32,6 +32,7 @@ import {
   MessagesSquare,
   IndianRupee,
   Megaphone,
+  BellRing,
   Flag,
   BarChart3,
   ToggleRight,
@@ -93,6 +94,7 @@ const navGroups: { label: string | null; items: NavItem[] }[] = [
       { href: '/admin/discounts', label: 'Discounts', icon: Tag, roles: ['admin'], permissionKey: 'discounts' },
       { href: '/admin/offers', label: 'Offers page', icon: Sparkles, roles: ['admin'], permissionKey: 'offers' },
       { href: '/admin/promo-cards', label: 'Home promos', icon: Megaphone, roles: ['admin'], permissionKey: 'promo_cards' },
+      { href: '/admin/promotions', label: 'Push promotions', icon: BellRing, roles: ['admin'], permissionKey: 'promo_cards' },
     ],
   },
   {

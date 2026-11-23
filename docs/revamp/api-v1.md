@@ -233,11 +233,13 @@ Hosting (dashboard, trip create/edit, join requests, payout, earnings under `/ho
 
 ## Push payloads
 
-The server fans out from `notifications` rows where `pushed_at` is null (see `src/lib/push/`).
+The server fans out from `notifications` rows where `pushed_at` is null (see `src/lib/push/`). Any insert into `notifications` through the server Supabase clients pushes right after the response (`src/lib/push/auto.ts`); rows written by DB triggers or outside a request are swept by `/api/cron/push` every 5 minutes (GitHub Actions, `.github/workflows/push-sweep.yml`).
+
+Categories: `plans`, `replies`, `messages`, `trips`, `tags`, `marketing` (promotions, type `promotion`, sent from Admin → Push promotions only to people with `notify.push.marketing` on), `system`. Clients must treat an unknown category as `system`.
 
 | Platform | Payload |
 |---|---|
-| Android (FCM data message) | `{ "type": "...", "title": "...", "body": "...", "link": "/tribe/p/<id>", "notificationId": "...", "category": "plans" }`, delivered on channels `plans`, `replies`, `messages`, `trips` and `system` |
+| Android (FCM data message) | `{ "type": "...", "title": "...", "body": "...", "link": "/tribe/p/<id>", "notificationId": "...", "category": "plans" }`, delivered on channels `plans`, `replies`, `messages`, `trips`, `offers` (category `marketing`) and `system` |
 | iOS (APNs) | `aps.alert {title, body}`, `aps.thread-id = category`, plus custom keys `link` and `notificationId` |
 | Web Push | `{ title, body, link, tag: category }` |
 

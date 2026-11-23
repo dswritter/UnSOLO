@@ -3,12 +3,13 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
 import { getSupabaseAuthCookieOptions } from '@/lib/supabase/auth-cookie-options'
+import { withNotificationPush } from '@/lib/push/auto'
 
 const serverAuthCookieOptions = getSupabaseAuthCookieOptions()
 
 export async function createClient() {
   const cookieStore = await cookies()
-  return createServerClient(
+  return withNotificationPush(createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -26,12 +27,12 @@ export async function createClient() {
         },
       },
     }
-  )
+  ))
 }
 
 export async function createServiceClient() {
   const cookieStore = await cookies()
-  return createServerClient(
+  return withNotificationPush(createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     {
@@ -49,7 +50,7 @@ export async function createServiceClient() {
         },
       },
     }
-  )
+  ))
 }
 
 /** Service role without cookies — use for server actions that need auth.admin (e.g. getUserById). */
@@ -59,7 +60,7 @@ export function createServiceRoleClient() {
   if (!url || !key) {
     throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
   }
-  return createSupabaseClient(url, key, {
+  return withNotificationPush(createSupabaseClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
-  })
+  }))
 }

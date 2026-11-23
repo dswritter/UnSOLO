@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Bell, CalendarDays, MessageCircle, Tag, Ticket } from 'lucide-react'
+import { Bell, CalendarDays, MessageCircle, Sparkles, Tag, Ticket } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiFetch } from '@/lib/api/client'
 import { trackScreen } from '@/lib/analytics/client'
@@ -13,9 +13,45 @@ import { ago } from './format'
 
 const CATS = [
   { id: 'all', label: 'All' }, { id: 'plans', label: 'Plans' }, { id: 'replies', label: 'Replies' },
-  { id: 'trips', label: 'Trips' }, { id: 'tags', label: 'Tags' }, { id: 'system', label: 'Account' },
+  { id: 'trips', label: 'Trips' }, { id: 'tags', label: 'Tags' }, { id: 'marketing', label: 'Offers' }, { id: 'system', label: 'Account' },
 ] as const
-const ICON = { plans: CalendarDays, replies: MessageCircle, messages: MessageCircle, trips: Ticket, tags: Tag, system: Bell }
+const OFFERS_ASKED = 'unsolo.offersAsked'
+
+/** Asks once (per browser) whether to get offers; the setting itself is off by default. */
+function OffersAsk() {
+  const [show, setShow] = useState(false)
+  useEffect(() => {
+    let asked = true
+    try { asked = localStorage.getItem(OFFERS_ASKED) != null } catch { /* private mode */ }
+    if (asked) return
+    apiFetch<{ notify: { push: { marketing: boolean } } }>('/me/preferences')
+      .then((p) => { if (!p.notify.push.marketing) setShow(true) }).catch(() => undefined)
+  }, [])
+  if (!show) return null
+  const done = (on: boolean) => {
+    try { localStorage.setItem(OFFERS_ASKED, on ? 'yes' : 'no') } catch { /* private mode */ }
+    setShow(false)
+    if (on) {
+      apiFetch('/me/preferences', { method: 'PUT', body: { notify: { push: { marketing: true } } } })
+        .then(() => toast.success('Done. We’ll send the good deals only.')).catch((e) => toast.error((e as Error).message))
+    }
+  }
+  return (
+    <div className="pc-card mt-4 flex items-start gap-3 p-4">
+      <span className="fc-act-ic"><Sparkles aria-hidden /></span>
+      <div className="min-w-0 flex-1">
+        <p className="font-bold">Want first dibs on deals?</p>
+        <p className="mt-0.5 text-sm text-muted-foreground">Price drops and offers on trips, a couple of times a month at most. Change it any time in Settings.</p>
+        <div className="mt-3 flex gap-2">
+          <button type="button" className="pc-btn pc-btn-sm" onClick={() => done(true)}>Yes, send me offers</button>
+          <button type="button" className="pc-btn pc-btn-quiet pc-btn-sm" onClick={() => done(false)}>Not now</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const ICON = { plans: CalendarDays, replies: MessageCircle, messages: MessageCircle, trips: Ticket, tags: Tag, marketing: Sparkles, system: Bell }
 
 /** Activity: notifications grouped by category, join requests decided inline. */
 export function ActivityClient({ initial, initialCursor }: { initial: NotificationItem[]; initialCursor: string | null }) {
@@ -63,6 +99,7 @@ export function ActivityClient({ initial, initialCursor }: { initial: Notificati
       <div className="fc-scroll-x -mx-4 mt-4 gap-2 px-4 pb-1" role="toolbar" aria-label="Filter activity">
         {CATS.map((c) => <button key={c.id} type="button" className="pc-chip" aria-pressed={cat === c.id} onClick={() => setCat(c.id)}>{c.label}</button>)}
       </div>
+      <OffersAsk />
       {shown.length === 0 ? (
         <div className="pc-card mt-6 p-8 text-center">
           <span className="fc-act-ic mx-auto"><Bell aria-hidden /></span>

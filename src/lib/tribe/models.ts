@@ -102,7 +102,7 @@ export type HostOffer = {
 export type NotificationItem = {
   id: string
   type: string
-  category: 'plans' | 'replies' | 'messages' | 'trips' | 'tags' | 'system'
+  category: 'plans' | 'replies' | 'messages' | 'trips' | 'tags' | 'marketing' | 'system'
   title: string
   body: string | null
   link: string | null

@@ -63,6 +63,18 @@ export async function pushToUsers(userIds: string[], n: DirectPush) {
   await deliver(svc, allowed, n)
 }
 
+/** Pushes one notification row to all of its user's devices now, ignoring their category settings (admin test sends). */
+export async function pushNotificationNow(notificationId: string) {
+  const svc = createServiceRoleClient()
+  const { data: r } = await svc.from('notifications').select('id, user_id, type, title, body, link, metadata, is_read, created_at')
+    .eq('id', notificationId).maybeSingle()
+  if (!r) return
+  const n = toNotification(r as Row)
+  const { data: devices } = await svc.from('device_tokens').select('id, user_id, platform, token').eq('user_id', String(r.user_id))
+  await deliver(svc, (devices ?? []) as Row[], { title: n.title, body: n.body, link: n.link, category: n.category, type: n.type, notificationId: n.id })
+  return (devices ?? []).length
+}
+
 /** Sends pending notifications (optionally only for some users). Marks them pushed either way. */
 export async function dispatchPendingPushes(opts: { userIds?: string[]; limit?: number } = {}) {
   const svc = createServiceRoleClient()
@@ -71,13 +83,13 @@ export async function dispatchPendingPushes(opts: { userIds?: string[]; limit?: 
     .order('created_at', { ascending: true }).limit(opts.limit ?? 200)
   if (opts.userIds?.length) q = q.in('user_id', opts.userIds)
   const { data: rows, error } = await q
-  if (error || !rows?.length) return { sent: 0 }
+  if (error || !rows?.length) return { sent: 0, claimed: 0 }
   const ids = rows.map((r) => r.id as string)
   // Claim first so concurrent sweeps don't double-send; deliver only what this sweep claimed.
   const { data: claimedRows } = await svc.from('notifications').update({ pushed_at: new Date().toISOString() })
     .in('id', ids).is('pushed_at', null).select('id')
   const claimed = new Set((claimedRows ?? []).map((r) => r.id as string))
-  if (claimed.size === 0 || !(await pushEnabled(svc))) return { sent: 0 }
+  if (claimed.size === 0 || !(await pushEnabled(svc))) return { sent: 0, claimed: claimed.size }
 
   const userIds = [...new Set(rows.map((r) => String(r.user_id)))]
   const [{ data: devices }, { data: prefs }] = await Promise.all([
@@ -97,5 +109,5 @@ export async function dispatchPendingPushes(opts: { userIds?: string[]; limit?: 
     await deliver(svc, mine, { title: n.title, body: n.body, link: n.link, category: n.category, type: n.type, notificationId: n.id })
     sent++
   }
-  return { sent }
+  return { sent, claimed: claimed.size }
 }

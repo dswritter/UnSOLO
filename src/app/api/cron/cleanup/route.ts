@@ -12,6 +12,7 @@ import { sendTokenBalanceReminderEmail } from '@/lib/resend/emails'
 import { isTokenDepositEnabled } from '@/lib/join-preferences'
 import type { JoinPreferences } from '@/types'
 import { isAuthorizedCron } from '@/lib/cron/auth'
+import { withNotificationPush } from '@/lib/push/auto'
 
 export async function POST(request: Request) {
   // Protect with secret
@@ -20,10 +21,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const supabase = createClient(
+  const supabase = withNotificationPush(createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  )
+  ))
 
   const results = {
     staleBookings: 0,
