@@ -564,6 +564,8 @@ struct StoryRing: View {
     var progress: Double? = nil
     /// The last story failed to go up: a red ring (tap to retry).
     var failed = false
+    /// Draw the "+" badge (defaults to `isMine`). Pass false when the screen draws its own.
+    var plus: Bool? = nil
 
     var body: some View {
         ZStack {
@@ -603,7 +605,7 @@ struct StoryRing: View {
                     .background(Circle().fill(Pc.red))
                     .background(Circle().fill(Pc.paper).padding(-2.5))
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-            } else if isMine && progress == nil {
+            } else if plus ?? isMine, progress == nil {
                 Image(systemName: "plus").font(.system(size: 11, weight: .heavy)).foregroundStyle(Pc.onPine)
                     .frame(width: 22, height: 22)
                     .background(Circle().fill(Pc.pine))

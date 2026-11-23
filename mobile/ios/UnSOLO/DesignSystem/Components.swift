@@ -715,9 +715,13 @@ struct SearchDock: View {
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass").font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.ink)
                     .padding(.leading, 16)
-                (Text(title).font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink)
-                    + Text("  ·  \(subtitle)").font(.system(size: 13, weight: .medium)).foregroundStyle(Pc.ink2))
-                    .lineLimit(1)
+                // The place never truncates; the dates do.
+                HStack(spacing: 0) {
+                    Text(title).font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink)
+                        .lineLimit(1).fixedSize(horizontal: true, vertical: false).layoutPriority(1)
+                    Text("  ·  \(subtitle)").font(.system(size: 13, weight: .medium)).foregroundStyle(Pc.ink2)
+                        .lineLimit(1).truncationMode(.tail)
+                }
                 Spacer(minLength: 4)
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: "slider.horizontal.3").font(.system(size: 14.5, weight: .bold))

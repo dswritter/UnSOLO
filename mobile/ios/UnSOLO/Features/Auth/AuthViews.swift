@@ -1,8 +1,7 @@
-import AuthenticationServices
 import SwiftUI
 
-/// Welcome: Email (password or 6-digit email code) · Phone (SMS code) · browse as guest.
-/// Sign in with Apple is shown but disabled until UnSOLO has an Apple developer ID.
+/// Sign in: an illustration and why up top, a raised panel at the bottom with Google (big, gold), Phone, Email,
+/// Not now and the terms. Sign in with Apple joins once UnSOLO has an Apple developer ID.
 struct WelcomeView: View {
     @Environment(AppModel.self) private var app
     @Environment(Router.self) private var router
@@ -13,60 +12,79 @@ struct WelcomeView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    Wordmark(height: 34).padding(.top, 12)
-                    Text(router.authReason ?? "Find your people, then grab a spot.").pcFont(.display).foregroundStyle(Pc.ink)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text("Browse freely. You'll need an account to post, join plans, message and book.").pcFont(.body).foregroundStyle(Pc.ink2)
-                    HStack(spacing: 14) {
-                        SeatRing(seats: [.taken(nil), .taken(nil), .taken(nil), .you(nil), .open, .open, .open, .open], size: 96, dots: .none,
-                                 centreLabel: ("4", "open"))
-                        Text("Every trip is a circle of people you can see into before you join.").pcFont(.small).foregroundStyle(Pc.ink2)
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(spacing: 14) {
+                        Wordmark(height: 30).padding(.top, 8)
+                        SignInRing(size: 150).padding(.vertical, 6)
+                        Text(router.authReason ?? "Meet your people\nbefore you go.")
+                            .font(.system(size: 32, weight: .heavy, design: .rounded)).foregroundStyle(Pc.ink)
+                            .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                        Text("See who's going, save your seat, chat with your group and share stories from the road.")
+                            .pcFont(.body).foregroundStyle(Pc.ink2).multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(.vertical, 6)
-                    .accessibilityHidden(true)
-                    Button { google() } label: {
-                        HStack(spacing: 10) {
-                            if googleBusy { ProgressView().tint(Pc.ink2) } else { GoogleMark() }
-                            Text("Continue with Google")
+                        HStack(spacing: 6) {
+                            ForEach(["Verified travellers", "Group chats", "Safe trips"], id: \.self) { t in
+                                Text(t).font(.system(size: 12, weight: .semibold)).foregroundStyle(Pc.ink)
+                                    .padding(.horizontal, 10).padding(.vertical, 6).background(Capsule().fill(Pc.tonal))
+                                    .lineLimit(1).minimumScaleFactor(0.85)
+                            }
                         }
-                        .frame(maxWidth: .infinity)
+                        if app.isDemo {
+                            Text("Demo mode: any email + 6-character password works. Email codes are 123456 and SMS codes are 1234.")
+                                .pcFont(.small).foregroundStyle(Pc.goldInk).padding(10).background(Pc.goldBg, in: Pc.shape(Pc.radius))
+                        }
                     }
-                    .buttonStyle(.pc(.outline, fullWidth: true))
-                    .disabled(googleBusy)
-                    if let googleError { Text(googleError).pcFont(.small).foregroundStyle(Pc.red) }
-                    NavigationLink { PhoneAuthView(onDone: finish) } label: {
-                        Label("Continue with phone number", systemImage: "iphone").frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.pc(.primary, fullWidth: true))
-                    NavigationLink { EmailAuthView(onDone: finish) } label: {
-                        Label("Continue with email", systemImage: "envelope").frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.pc(.outline, fullWidth: true))
-                    VStack(alignment: .leading, spacing: 6) {
-                        SignInWithAppleButton(.continue) { _ in } onCompletion: { _ in }
-                            .signInWithAppleButtonStyle(.black)
-                            .frame(height: PcTokens.buttonTall)
-                            .clipShape(Capsule())
-                            .disabled(true)
-                            .opacity(0.35)
-                        Text("Sign in with Apple arrives with the TestFlight build (needs UnSOLO's Apple developer ID).")
-                            .pcFont(.small).foregroundStyle(Pc.ink2)
-                    }
-                    Button("Browse as guest") { dismiss() }.buttonStyle(.pcLink).frame(maxWidth: .infinity)
-                    if app.isDemo {
-                        Text("Demo mode: any email + 6-character password works. Email codes are 123456 and SMS codes are 1234.")
-                            .pcFont(.small).foregroundStyle(Pc.goldInk).padding(10).background(Pc.goldBg, in: Pc.shape(Pc.radius))
-                    }
-                    Text("By continuing you agree to the Terms and the Refund policy. UnSOLO is for travellers 18+.")
-                        .pcFont(.small).foregroundStyle(Pc.ink2)
+                    .padding(.horizontal, 20).padding(.bottom, 16)
+                    .frame(maxWidth: .infinity)
                 }
-                .padding(16)
+                panel
             }
             .pcScreen()
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Not now") { dismiss() }.tint(Pc.ink) } }
+            .toolbar(.hidden, for: .navigationBar)
+        }
+    }
+
+    /// The raised panel at the bottom, within thumb reach.
+    private var panel: some View {
+        VStack(spacing: 10) {
+            VStack(spacing: 2) {
+                Text("Join UnSOLO free").font(.system(size: 20, weight: .heavy)).foregroundStyle(Pc.ink)
+                Text("Sign in or create an account in seconds").pcFont(.small).foregroundStyle(Pc.ink2)
+            }
+            .padding(.bottom, 4)
+            Button { google() } label: {
+                HStack(spacing: 10) {
+                    if googleBusy { ProgressView().tint(Pc.onPine) } else { GoogleMark() }
+                    Text("Continue with Google").font(.system(size: 16, weight: .bold))
+                }
+                .frame(maxWidth: .infinity, minHeight: 56)
+            }
+            .buttonStyle(.pc(.accent, fullWidth: true))
+            .disabled(googleBusy)
+            HStack(spacing: 10) {
+                NavigationLink { PhoneAuthView(onDone: finish) } label: {
+                    Label("Phone", systemImage: "iphone").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.pc(.outline, fullWidth: true))
+                NavigationLink { EmailAuthView(onDone: finish) } label: {
+                    Label("Email", systemImage: "envelope").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.pc(.outline, fullWidth: true))
+            }
+            .disabled(googleBusy)
+            if let googleError { Text(googleError).pcFont(.small).foregroundStyle(Pc.red).multilineTextAlignment(.center) }
+            Button("Not now") { dismiss() }.buttonStyle(.pcLink)
+            Text("By continuing you agree to the Terms and Refund policy. 18+ only.")
+                .font(.system(size: 11)).foregroundStyle(Pc.ink2).multilineTextAlignment(.center)
+        }
+        .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 8)
+        .frame(maxWidth: .infinity)
+        .background {
+            UnevenRoundedRectangle(topLeadingRadius: PcTokens.radiusSheet, topTrailingRadius: PcTokens.radiusSheet)
+                .fill(Pc.raised)
+                .shadow(color: .black.opacity(0.12), radius: 16, y: -4)
+                .ignoresSafeArea(edges: .bottom)
         }
     }
 
@@ -477,5 +495,77 @@ struct GoogleMark: View {
             .frame(width: 24, height: 24)
             .background(Circle().fill(.white))
             .accessibilityHidden(true)
+    }
+}
+
+/// The seat ring used on the sign-in pages: three people in, your spot, four open.
+struct SignInRing: View {
+    var size: CGFloat = 150
+
+    var body: some View {
+        SeatRing(seats: [.taken(nil), .taken(nil), .taken(nil), .you(nil), .open, .open, .open, .open], size: size, dots: .none,
+                 centreLabel: ("4", "open"))
+            .accessibilityElement()
+            .accessibilityLabel("A circle of 8 spots: 3 taken, yours, and 4 open")
+    }
+}
+
+/// What a signed-out tab shows: why an account helps. Pair it with `.signInBar()` for the button within thumb reach.
+struct SignInInvite: View {
+    var title = "Your trips start here"
+    var message = "Sign in to join trips and plans, chat with your group and share stories."
+
+    var body: some View {
+                VStack(spacing: 14) {
+                    SignInRing(size: 140).padding(.top, 24).padding(.bottom, 4)
+                    Text(title).font(.system(size: 28, weight: .heavy, design: .rounded)).foregroundStyle(Pc.ink)
+                        .multilineTextAlignment(.center)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(message).pcFont(.body).foregroundStyle(Pc.ink2).multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                    VStack(alignment: .leading, spacing: 12) {
+                        perk("person.2", "See who's going before you book")
+                        perk("bubble.left.and.bubble.right", "Chat with your trip group")
+                        perk("camera", "Share stories from the road")
+                    }
+                    .padding(.top, 8)
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 16)
+                .frame(maxWidth: .infinity)
+    }
+
+    private func perk(_ symbol: String, _ text: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: symbol).font(.system(size: 16, weight: .semibold)).foregroundStyle(Pc.ink)
+                .frame(width: 40, height: 40).background(Circle().fill(Pc.tonal))
+            Text(text).pcFont(.bodyStrong).foregroundStyle(Pc.ink)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// The big gold sign-in button anchored near the bottom of a signed-out screen.
+private struct SignInBar: View {
+    @Environment(Router.self) private var router
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Button { router.authSheet = true } label: {
+                Text("Sign in or create account").font(.system(size: 16, weight: .bold)).frame(maxWidth: .infinity, minHeight: 56)
+            }
+            .buttonStyle(.pc(.accent, fullWidth: true))
+            Text("Free · Google, phone or email · takes a minute").font(.system(size: 12)).foregroundStyle(Pc.ink2)
+        }
+        .padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 12)
+        .frame(maxWidth: .infinity)
+        .background(Pc.paper)
+    }
+}
+
+extension View {
+    /// Adds the sign-in button at the bottom while `show` is true.
+    func signInBar(_ show: Bool) -> some View {
+        safeAreaInset(edge: .bottom, spacing: 0) { if show { SignInBar() } }
     }
 }

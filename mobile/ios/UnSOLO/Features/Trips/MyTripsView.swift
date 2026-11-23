@@ -36,6 +36,7 @@ struct MyTripsView: View {
         }
         .onChange(of: router.reselected[.trips]) { _, _ in withAnimation { proxy.scrollTo("top", anchor: .top) } }
         }
+        .signInBar(!session.isSignedIn)
         .pcScreen()
         .toolbar(.hidden, for: .navigationBar)
         .task(id: session.isSignedIn) {
@@ -45,12 +46,7 @@ struct MyTripsView: View {
     }
 
     private var signedOut: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Your bookings live here").pcFont(.title2).foregroundStyle(Pc.ink)
-            Text("Sign in to see trips, stays, activities and rentals you've booked, plans you've joined and their group chats.").pcFont(.body).foregroundStyle(Pc.ink2)
-            Button("Sign in") { router.authSheet = true }.buttonStyle(.pc(.primary, fullWidth: true))
-        }
-        .padding(20)
+        SignInInvite(message: "Sign in to see the trips, stays and rentals you book, the plans you join and their group chats.")
     }
 
     @ViewBuilder private var upcoming: some View {

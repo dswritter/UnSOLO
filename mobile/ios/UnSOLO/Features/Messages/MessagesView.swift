@@ -5,6 +5,7 @@ struct MessagesView: View {
     enum Segment: Hashable { case circles, direct, requests }
     @Environment(AppModel.self) private var app
     @Environment(Router.self) private var router
+    @Environment(SessionStore.self) private var session
     @State private var segment: Segment = .circles
 
     private var circles: [ChatSummary] { app.chat.chats.filter { !$0.isRequest && $0.type != "direct" } }
@@ -16,6 +17,9 @@ struct MessagesView: View {
             LazyVStack(alignment: .leading, spacing: 0) {
                 Text("Messages").pcFont(.display).foregroundStyle(Pc.ink).padding(.horizontal, 20).padding(.top, 4)
                     .accessibilityAddTraits(.isHeader)
+                if !session.isSignedIn {
+                    SignInInvite(title: "Your trip groups live here", message: "Sign in to chat with the people on your trips and plans.")
+                } else {
                 ChipTabs(items: [(.circles, "Circles · \(circles.count)"), (.direct, "Direct · \(direct.count)"),
                                  (.requests, requests.isEmpty ? "Requests" : "Requests · \(requests.count)")],
                          selection: $segment)
@@ -36,8 +40,10 @@ struct MessagesView: View {
                     Text("Requests come from people you don't follow. They won't know you've read them until you reply. You can also report or block.")
                         .pcFont(.small).foregroundStyle(Pc.ink2).padding(20)
                 }
+                }
             }
         }
+        .signInBar(!session.isSignedIn)
         .refreshable { await app.chat.refreshChats() }
         .pcScreen()
         .pcNavigationBar()

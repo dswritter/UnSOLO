@@ -28,17 +28,12 @@ struct YouView: View {
                     if let me = session.me {
                         ProfileContent(username: me.user.username, isMe: true)
                     } else {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Browse freely. Sign in to join.").pcFont(.title2).foregroundStyle(Pc.ink)
-                            Text("Posting, joining plans and chats need an account with a verified email or phone.").pcFont(.body).foregroundStyle(Pc.ink2)
-                            Button("Sign in or create an account") { router.authSheet = true }.buttonStyle(.pc(.primary, fullWidth: true))
-                            Button("Settings") { router.push(.settings) }.buttonStyle(.pc(.outline, fullWidth: true))
-                        }
-                        .padding(16)
+                        SignInInvite()
                     }
                 }
             }
             .onChange(of: router.reselected[.you]) { _, _ in withAnimation { proxy.scrollTo("top", anchor: .top) } }
+            .signInBar(session.me == nil)
             .refreshable {
                 guard let u = session.user?.username else { return }
                 await app.profiles.refresh(u)

@@ -119,10 +119,26 @@ struct MyStoryAvatar: View {
         let u = repo.upload
         Button { openMyStory(app, router, mine: mine) } label: {
             StoryRing(user: user, segments: mine?.items.count ?? 1, seen: 0, size: size, isMine: mine == nil,
-                      progress: u?.progress, failed: u?.error != nil)
+                      progress: u?.progress, failed: u?.error != nil, plus: false)
         }
         .buttonStyle(.pcPress)
         .accessibilityLabel(u?.error != nil ? "Retry your story" : u != nil ? "Your story is going up" : mine != nil ? "Play your stories" : "Add to your story")
+        // Always there, at the ring's edge (also while you have a story): adds another.
+        .overlay(alignment: .bottomTrailing) {
+            if u == nil {
+                Button { app.requireVerified("Sign in to share a story") { router.storyComposer = StoryComposeItem() } } label: {
+                    Image(systemName: "plus").font(.system(size: 12, weight: .heavy)).foregroundStyle(Pc.onPine)
+                        .frame(width: 24, height: 24)
+                        .background(Circle().fill(Pc.pine))
+                        .background(Circle().fill(Pc.paper).padding(-2.5))
+                        .frame(width: 34, height: 34) // bigger tap area, not clipped
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .offset(x: 7, y: 7)
+                .accessibilityLabel("Add to your story")
+            }
+        }
     }
 }
 
@@ -429,14 +445,16 @@ private struct StatusPlayer: View {
         if index > 0 { idx = index - 1 } else { onBack() }
     }
 
-    private func react(_ kind: String) {
+    /// A tap always plays the floating emojis and keeps your reaction (even if it's already that one).
+    /// `fromPicker`: tapping your current one in the hold-to-pick row takes it back.
+    private func react(_ kind: String, fromPicker: Bool = false) {
         guard let item else { return }
         app.requireVerified("Sign in to react") {
-            let adding = item.myReaction != kind
+            let takingBack = fromPicker && item.myReaction == kind
             Haptics.strong()
-            if adding { bursts.append(EmojiBurst(emoji: StoryReaction.emoji(kind) ?? "🏔️")) }
+            if !takingBack { bursts.append(EmojiBurst(emoji: StoryReaction.emoji(kind) ?? "🏔️")) }
             Task {
-                await app.statuses.react(item, kind: kind)
+                if takingBack || item.myReaction != kind { await app.statuses.react(item, kind: kind) }
                 try? await Task.sleep(for: .seconds(FloatingEmojis.duration))
                 bursts.removeAll { Date().timeIntervalSince($0.start) > FloatingEmojis.duration }
             }
@@ -557,7 +575,7 @@ private struct StatusPlayer: View {
                 if picker {
                     HStack(spacing: 4) {
                         ForEach(StoryReaction.all, id: \.key) { r in
-                            Button { picker = false; react(r.key) } label: {
+                            Button { picker = false; react(r.key, fromPicker: true) } label: {
                                 Text(r.emoji).font(.system(size: 30)).padding(6)
                                     .background(Circle().fill(item.myReaction == r.key ? .white.opacity(0.25) : .clear))
                             }
@@ -579,7 +597,7 @@ private struct StatusPlayer: View {
         let mine = item.myReaction
         let total = item.totalReactions
         return VStack(spacing: 6) {
-            // Tap: "Take me there" (or take your reaction back). Hold: pick another.
+            // Tap: "Take me there" (or your reaction again). Hold: pick another, or tap yours there to take it back.
             VStack(spacing: 2) {
                 Text(StoryReaction.emoji(mine) ?? "🏔️").font(.system(size: 26)).opacity(mine == nil ? 0.85 : 1)
                     .scaleEffect(mine != nil ? 1.15 : 1)
@@ -980,6 +998,7 @@ struct StatusComposer: View {
     @State private var picked: [PhotosPickerItem] = []
     @State private var page: UUID?
     @State private var cropping: CropTarget?
+    @State private var cameraOpen = false
     @State private var showArchive = false
     @FocusState private var typing: Bool
 
@@ -1021,6 +1040,13 @@ struct StatusComposer: View {
                 }
                 picked = []
             }
+        }
+        .fullScreenCover(isPresented: $cameraOpen) {
+            CameraCapture { jpeg in
+                cameraOpen = false
+                if let jpeg, shots.count < 10, let shot = ComposerShot(jpeg) { add(shot); page = shot.id }
+            }
+            .ignoresSafeArea()
         }
         .fullScreenCover(item: $cropping) { t in
             PhotoCropEditor(data: t.data, onCancel: { cropping = nil }) { jpeg in
@@ -1157,11 +1183,21 @@ struct StatusComposer: View {
                     .background(RoundedRectangle(cornerRadius: 22).fill(Color(white: 0.07).opacity(0.6)))
             }
             HStack(spacing: 8) {
-                Button { pickerOpen = true } label: {
+                Button {
+                    if UIImagePickerController.isSourceTypeAvailable(.camera) { cameraOpen = true }
+                    else { app.showToast("No camera on this device. Pick photos instead.") }
+                } label: {
                     Image(systemName: "camera").font(.system(size: 16, weight: .bold)).foregroundStyle(.white)
                         .frame(width: 44, height: 44).background(Circle().fill(.white.opacity(0.16)))
                 }
-                .accessibilityLabel("Add photos")
+                .accessibilityLabel("Take a photo")
+                .disabled(shots.count >= 10)
+                Button { pickerOpen = true } label: {
+                    Image(systemName: "photo.on.rectangle").font(.system(size: 16, weight: .bold)).foregroundStyle(.white)
+                        .frame(width: 44, height: 44).background(Circle().fill(.white.opacity(0.16)))
+                }
+                .accessibilityLabel("Pick photos")
+                .disabled(shots.count >= 10)
                 chip("@ Tag people", selected: false) { tagging = true }
                 let tagged = Mentions.names(caption).count
                 if tagged > 0 { Text("\(tagged) tagged").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.75)) }
@@ -1237,5 +1273,34 @@ struct StatusArchiveView: View {
         .pcScreen()
         .pcNavigationBar("Story archive")
         .onAppear { app.statuses.loadArchive() }
+    }
+}
+
+/// The system camera: take one photo, get it back as JPEG (nil if cancelled).
+struct CameraCapture: UIViewControllerRepresentable {
+    let onDone: (Data?) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(onDone: onDone) }
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let c = UIImagePickerController()
+        c.sourceType = .camera
+        c.cameraCaptureMode = .photo
+        c.delegate = context.coordinator
+        return c
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let onDone: (Data?) -> Void
+        init(onDone: @escaping (Data?) -> Void) { self.onDone = onDone }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            let image = info[.originalImage] as? UIImage
+            onDone(image?.jpegData(compressionQuality: 0.92))
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) { onDone(nil) }
     }
 }

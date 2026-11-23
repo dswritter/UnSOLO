@@ -93,14 +93,7 @@ struct ExploreView: View {
         ScrollViewReader { proxy in
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
-                AppHeader(showsWordmark: true) {
-                    Button { router.push(.exploreMap) } label: {
-                        Image(systemName: "map").font(.system(size: 16.5)).foregroundStyle(Pc.ink)
-                            .frame(width: PcTokens.touch, height: PcTokens.touch)
-                    }
-                    .buttonStyle(.pcPress)
-                    .accessibilityLabel("Map")
-                }
+                AppHeader(showsWordmark: true)
                     .id("top")
                     .overlay {
                         // No visible page title: the chips sit right under the top bar. VoiceOver still gets a heading.
@@ -125,8 +118,24 @@ struct ExploreView: View {
             #endif
         }
         }
-            SearchDock(title: filter.query.isEmpty ? "Where to?" : filter.query, subtitle: filter.whenLabel, activeFilters: filter.activeCount) {
-                showSearch = true
+            HStack(spacing: 8) {
+                SearchDock(title: filter.query.isEmpty ? "Where to?" : filter.query, subtitle: filter.whenLabel, activeFilters: filter.activeCount) {
+                    showSearch = true
+                }
+                Button { router.push(.exploreMap) } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "mappin").font(.system(size: 14, weight: .bold))
+                        Text("Map").font(.system(size: 14, weight: .bold))
+                    }
+                    .foregroundStyle(Pc.raised)
+                    .padding(.horizontal, 16)
+                    .frame(height: PcTokens.searchDock)
+                    .background(Capsule().fill(Pc.ink))
+                    .shadow(color: .black.opacity(0.12), radius: 14, y: 6)
+                    .fixedSize()
+                }
+                .buttonStyle(.pcPress)
+                .accessibilityLabel("Map")
             }
             .padding(.horizontal, 14)
             .padding(.bottom, 10)

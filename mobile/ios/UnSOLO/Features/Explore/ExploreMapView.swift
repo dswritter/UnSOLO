@@ -43,7 +43,15 @@ struct ExploreMapView: View {
             }
             .background(.regularMaterial)
             if loading { ProgressView().tint(Pc.ink).padding(.top, 70) }
-            else if failed { Text("Couldn't load the map. Pull down on Explore and try again.").pcFont(.small).padding(10).background(Capsule().fill(.regularMaterial)).padding(.top, 70) }
+            else if failed {
+                Button { Task { await load() } } label: {
+                    (Text("Couldn't load the places · ") + Text("Try again").bold().foregroundColor(Pc.accentInk))
+                        .pcFont(.small).foregroundStyle(Pc.ink)
+                        .padding(.horizontal, 14).padding(.vertical, 10).background(Capsule().fill(.regularMaterial))
+                }
+                .buttonStyle(.pcPress)
+                .padding(.top, 70)
+            }
             else if pins.isEmpty { Text("Nothing on the map here yet").pcFont(.small).padding(10).background(Capsule().fill(.regularMaterial)).padding(.top, 70) }
         }
         .overlay(alignment: .bottom) {
@@ -52,6 +60,18 @@ struct ExploreMapView: View {
         .animation(.snappy, value: selected?.id)
         .pcNavigationBar("Map")
         .task(id: category) { await load() }
+        // Re-fit whenever the set of places changes (the saved copy first, then the fresh one).
+        .onChange(of: pins.map(\.id)) { _, _ in fit() }
+    }
+
+    private func fit() {
+        guard !pins.isEmpty else { return }
+        let lats = pins.map(\.lat), lngs = pins.map(\.lng)
+        let minLat = lats.min()!, maxLat = lats.max()!, minLng = lngs.min()!, maxLng = lngs.max()!
+        let region = MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: (minLat + maxLat) / 2, longitude: (minLng + maxLng) / 2),
+            span: MKCoordinateSpan(latitudeDelta: max(0.5, (maxLat - minLat) * 1.4), longitudeDelta: max(0.5, (maxLng - minLng) * 1.4)))
+        withAnimation(.easeInOut(duration: 0.4)) { position = .region(region) }
     }
 
     private func load() async {
