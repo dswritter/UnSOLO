@@ -35,11 +35,12 @@ object NotificationChannels {
     const val MESSAGES = "messages"
     const val TRIPS = "trips"
     const val SYSTEM = "system"
+    const val OFFERS = "offers"
     const val UPLOADS = "uploads"
 
-    /** Contract categories → Android channels (tags ride on replies). */
+    /** Contract categories → Android channels (tags ride on replies, marketing on offers). */
     fun forCategory(category: String?) = when (category) {
-        PLANS -> PLANS; REPLIES, "tags" -> REPLIES; MESSAGES -> MESSAGES; TRIPS -> TRIPS; else -> SYSTEM
+        PLANS -> PLANS; REPLIES, "tags" -> REPLIES; MESSAGES -> MESSAGES; TRIPS -> TRIPS; "marketing" -> OFFERS; else -> SYSTEM
     }
 
     fun create(context: Context) {
@@ -51,6 +52,7 @@ object NotificationChannels {
             NotificationChannel(MESSAGES, "Messages", NotificationManager.IMPORTANCE_HIGH).apply { description = "Trip, plan and direct chats" },
             NotificationChannel(TRIPS, "Trips", NotificationManager.IMPORTANCE_HIGH).apply { description = "Bookings, departures and payments due" },
             NotificationChannel(SYSTEM, "Account and safety", NotificationManager.IMPORTANCE_DEFAULT),
+            NotificationChannel(OFFERS, "Offers and news", NotificationManager.IMPORTANCE_LOW).apply { description = "Deals and price drops (only if you turned on Offers and news)" },
             NotificationChannel(UPLOADS, "Uploads", NotificationManager.IMPORTANCE_LOW).apply { description = "Photo upload progress"; setShowBadge(false) },
         ).forEach { nm.createNotificationChannel(it) }
     }

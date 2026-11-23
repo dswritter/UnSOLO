@@ -45,8 +45,16 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.buildJsonObject
+import com.unsolo.app.core.net.AppJson
+import com.unsolo.app.data.getAs
+import com.unsolo.app.data.putAs
+import com.unsolo.app.data.observeAs
 
 // ---------------- Activity ----------------
+
+private const val KEY_OFFERS_ASKED = "offers_asked"
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ActivityViewModel(private val g: AppGraph) : ViewModel() {
@@ -75,6 +83,20 @@ class ActivityViewModel(private val g: AppGraph) : ViewModel() {
         if (!n.isRead) g.activity.markRead(listOf(n.id))
     }
     fun markAll() = viewModelScope.launch { g.activity.markAllRead() }
+
+    /** Ask once (per install) whether to get offers; the setting is off by default. */
+    val askOffers = combine(g.account.me, g.db.cache().observeAs(KEY_OFFERS_ASKED, Boolean.serializer())) { me, asked ->
+        me != null && asked == null && !me.preferences.notify.push.marketing
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    fun answerOffers(on: Boolean) = viewModelScope.launch {
+        g.db.cache().putAs(KEY_OFFERS_ASKED, Boolean.serializer(), on)
+        if (!on) return@launch
+        val notify = g.account.me.value?.preferences?.notify ?: return@launch
+        g.account.updatePreferences(buildJsonObject {
+            put("notify", AppJson.encodeToJsonElement(Notify.serializer(), notify.copy(push = notify.push.copy(marketing = true))))
+        })
+        g.events.emit(com.unsolo.app.data.AppEvent.Message("Done. We'll send the good deals only."))
+    }
     fun decide(postId: String, userId: String, approve: Boolean) = viewModelScope.launch { g.tribe.decide(postId, userId, approve) }
     fun approveAll(postId: String) = viewModelScope.launch {
         requests.value.firstOrNull { it.first.id == postId }?.second?.filter { it.state == "requested" }?.forEach { g.tribe.decide(postId, it.user.id, true) }
@@ -88,6 +110,7 @@ fun ActivityScreen(nav: AppNav) {
     val list by vm.notifications.collectAsStateWithLifecycle()
     val reqs by vm.requests.collectAsStateWithLifecycle()
     val decided by vm.decided.collectAsStateWithLifecycle()
+    val askOffers by vm.askOffers.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableStateOf("all") }
     val waiting = reqs.sumOf { (_, r) -> r.count { it.state == "requested" } }
     val c = Pc.colors
@@ -97,13 +120,16 @@ fun ActivityScreen(nav: AppNav) {
             PageHeader("Activity", LocalHeaderCounts.current, { nav.to(Routes.INBOX) }, { }, onBack = { nav.back() }) {
                 if (list.any { !it.isRead }) LinkText("Mark all read", { vm.markAll() }, Modifier.padding(end = 4.dp), Pc.type.smallStrong)
             }
-            Segmented(listOf("all" to "All", "requests" to "Requests · $waiting"), tab, { tab = it })
+            val hasOffers = list.any { it.category == "marketing" }
+            Segmented(listOf("all" to "All") + (if (hasOffers) listOf("offers" to "Offers") else emptyList()) + listOf("requests" to "Requests · $waiting"), tab, { tab = it })
             Spacer(Modifier.height(12.dp))
             Spacer(Modifier.height(4.dp))
         }
-        if (tab == "all") {
-            if (list.isEmpty()) item { EmptyState("All quiet", "Join requests, replies and offers will show up here.") }
-            items(list, key = { it.id }, contentType = { "n" }) { n ->
+        if (tab == "all" || tab == "offers") {
+            if (askOffers) item(key = "offers-ask") { OffersAsk(onAnswer = { vm.answerOffers(it) }) }
+            val shown = if (tab == "offers") list.filter { it.category == "marketing" } else list
+            if (shown.isEmpty()) item { EmptyState("All quiet", "Join requests, replies and offers will show up here.") }
+            items(shown, key = { it.id }, contentType = { "n" }) { n ->
                 val postId = n.postId ?: DeepLinks.routeForPath(n.link)?.takeIf { it.startsWith("post/") }?.removePrefix("post/")
                 val pending = postId?.let { id -> reqs.firstOrNull { it.first.id == id }?.second?.count { r -> r.state == "requested" } } ?: 0
                 NotificationRow(n,
@@ -150,6 +176,23 @@ fun ActivityScreen(nav: AppNav) {
     }
 }
 
+@Composable
+private fun OffersAsk(onAnswer: (Boolean) -> Unit) {
+    val c = Pc.colors
+    Row(Modifier.padding(horizontal = 14.dp, vertical = 5.dp).fillMaxWidth().raisedCard().padding(14.dp), verticalAlignment = Alignment.Top) {
+        Box(Modifier.size(36.dp).clip(CircleShape).background(c.tonal), contentAlignment = Alignment.Center) { PcIcon(PcIcons.Lightning, null, size = 20.dp, tint = c.ink) }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text("Want first dibs on deals?", style = Pc.type.bodyStrong, color = c.ink)
+            Text("Price drops and offers on trips, a couple of times a month at most. Change it any time in Settings.", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(top = 2.dp))
+            Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                PcButton("Yes, send me offers", { onAnswer(true) }, height = BtnSmall)
+                PcButton("Not now", { onAnswer(false) }, kind = BtnKind.Outline, height = BtnSmall)
+            }
+        }
+    }
+}
+
 /** Contract type is tribe_join_request; plan.join_request is accepted for older payloads. */
 private val JoinTypes = setOf("tribe_join_request", "plan.join_request")
 
@@ -162,7 +205,7 @@ private fun NotificationRow(n: AppNotification, onOpen: () -> Unit, actions: @Co
         Row(verticalAlignment = Alignment.Top) {
             Box {
                 Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(c.tonal), contentAlignment = Alignment.Center) {
-                    PcIcon(when (n.category) { "plans" -> PcIcons.UsersThree; "replies" -> PcIcons.ChatCircle; "messages" -> PcIcons.ChatsCircle; "trips" -> PcIcons.Ticket; "tags" -> PcIcons.Camera; else -> PcIcons.Bell }, null, size = 20.dp, tint = c.ink)
+                    PcIcon(when (n.category) { "plans" -> PcIcons.UsersThree; "replies" -> PcIcons.ChatCircle; "messages" -> PcIcons.ChatsCircle; "trips" -> PcIcons.Ticket; "tags" -> PcIcons.Camera; "marketing" -> PcIcons.Lightning; else -> PcIcons.Bell }, null, size = 20.dp, tint = c.ink)
                 }
                 if (!n.isRead) Box(Modifier.align(Alignment.TopEnd).offset(3.dp, (-3).dp).size(12.dp).clip(CircleShape).background(c.raised).padding(2.dp).clip(CircleShape).background(c.rose))
             }
