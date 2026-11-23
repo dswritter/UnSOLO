@@ -534,7 +534,7 @@ fun ExploreMapScreen(nav: AppNav, startCategory: String) {
     var failed by remember { mutableStateOf(false) }
     var attempt by remember { mutableIntStateOf(0) }
     LaunchedEffect(category, attempt) {
-        selected = null; failed = false
+        selected = null; failed = false; pins = null
         g.trips.cachedPins(category)?.let { pins = it.pins }
         when (val r = g.trips.mapPins(category)) {
             is ApiResult.Ok -> pins = r.value.pins

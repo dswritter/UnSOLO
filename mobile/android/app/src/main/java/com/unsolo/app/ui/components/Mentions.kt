@@ -44,30 +44,81 @@ fun mentionAnnotated(text: String, color: Color? = null, onMention: (String) -> 
     append(text.substring(last))
 }
 
-/**
- * Suggestions while someone types `@na…` at the end of [text]: people you follow and earlier
- * matches show at once, the search fills in. Picking one calls [onText] with the mention finished.
- */
+/** What's being typed after `@` at the end of a text, and who it could be (best match first). */
+@Immutable
+class MentionAssist(val start: Int, val query: String, val hits: List<UserLite>) {
+    val best: UserLite? get() = hits.firstOrNull()
+    /** The rest, for the row above the box. */
+    val others: List<UserLite> get() = hits.drop(1)
+    /** [text] with the typed `@na` replaced by the best match's `@username `. */
+    fun complete(text: String, max: Int = 2000): String = best?.let { (text.substring(0, start) + "@${it.username} ").take(max) } ?: text
+}
+
+private fun rank(q: String, hits: List<UserLite>): List<UserLite> {
+    val t = q.lowercase()
+    return hits.sortedBy { u ->
+        val un = u.username.lowercase(); val n = u.name.lowercase()
+        when { un == t -> 0; un.startsWith(t) -> 1; n.split(' ').any { it.startsWith(t) } -> 2; else -> 3 }
+    }
+}
+
+/** Live mention help for [text]: null when no `@name` is being typed. */
 @Composable
-fun MentionPicker(text: String, statuses: StatusRepository, onText: (String) -> Unit, modifier: Modifier = Modifier) {
-    val c = Pc.colors
+fun rememberMentionAssist(text: String, statuses: StatusRepository): MentionAssist? {
     val m = TYPING.find(text)
     val q = m?.groupValues?.get(2).orEmpty()
     var hits by remember { mutableStateOf<List<UserLite>>(emptyList()) }
     LaunchedEffect(Unit) { statuses.warmPeople() }
     LaunchedEffect(m != null, q) {
         if (m == null || q.isEmpty()) { hits = emptyList(); return@LaunchedEffect }
-        hits = statuses.peopleNow(q)
+        // People we already know show at once; the server's answer fills in a moment later.
+        hits = rank(q, statuses.peopleNow(q))
         delay(120)
-        hits = statuses.people(q)
+        hits = rank(q, statuses.people(q))
     }
-    if (m == null) return
-    val start = m.range.first + m.groupValues[1].length
-    if (q.isEmpty()) { Text("Type a name or username to mention someone", style = Pc.type.small, color = c.ink3, modifier = modifier.padding(horizontal = 14.dp, vertical = 6.dp)); return }
-    if (hits.isEmpty()) return
+    if (m == null) return null
+    return MentionAssist(m.range.first + m.groupValues[1].length, q, if (q.isEmpty()) emptyList() else hits)
+}
+
+/**
+ * Typing a space right after `@na` takes the best match ("@ananya "). Use as the field's
+ * onValueChange filter: `onChange(mentionTyped(old, new, assist))`.
+ */
+fun mentionTyped(old: String, new: String, assist: MentionAssist?): String {
+    if (assist == null || assist.query.isEmpty() || new != "$old ") return new
+    val best = assist.best ?: return new
+    if (best.username.equals(assist.query, ignoreCase = true)) return new
+    return assist.complete(old)
+}
+
+/** The best match, ticked, inside the input box: tap to take it. */
+@Composable
+fun MentionBadge(assist: MentionAssist?, onAccept: () -> Unit, dark: Boolean = false) {
+    val best = assist?.best ?: return
+    if (best.username.equals(assist.query, ignoreCase = true)) return
+    val c = Pc.colors
+    Row(Modifier.clip(CircleShape).background(if (dark) Color.White.copy(alpha = 0.18f) else c.tonal)
+        .clickable(onClickLabel = "Mention ${best.name}", onClick = onAccept).padding(start = 8.dp, end = 10.dp, top = 5.dp, bottom = 5.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Text("✓", style = Pc.type.smallStrong, color = if (dark) Color(0xFF7BE0A1) else c.pine)
+        Spacer(Modifier.width(4.dp))
+        Text("@${best.username}", style = Pc.type.smallStrong, color = if (dark) Color.White else c.ink, maxLines = 1)
+    }
+}
+
+/**
+ * Other people it could be, in a row above the box (the best match sits in the box). Picking
+ * one calls [onText] with the mention finished.
+ */
+@Composable
+fun MentionPicker(text: String, statuses: StatusRepository, onText: (String) -> Unit, modifier: Modifier = Modifier, assist: MentionAssist? = rememberMentionAssist(text, statuses)) {
+    val c = Pc.colors
+    val a = assist ?: return
+    if (a.query.isEmpty()) { Text("Type a name or username to mention someone", style = Pc.type.small, color = c.ink3, modifier = modifier.padding(horizontal = 14.dp, vertical = 6.dp)); return }
+    if (a.others.isEmpty()) return
     LazyRow(modifier.padding(vertical = 6.dp), contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(hits, key = { it.id }) { u ->
-            Row(Modifier.clip(CircleShape).background(c.tonal).clickable(onClickLabel = "Mention ${u.name}") { onText((text.substring(0, start) + "@${u.username} ").take(2000)) }
+        items(a.others, key = { it.id }) { u ->
+            Row(Modifier.clip(CircleShape).background(c.tonal).clickable(onClickLabel = "Mention ${u.name}") { onText((text.substring(0, a.start) + "@${u.username} ").take(2000)) }
                 .padding(start = 4.dp, end = 12.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Avatar(u, 26.dp); Spacer(Modifier.width(8.dp))
                 Column {

@@ -210,12 +210,35 @@ class DemoBackend(private val context: Context) {
     private val emailRegex = Regex("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}")
     private val linkRegex = Regex("https?://(?!([a-z0-9-]+\\.)?unsolo\\.in)[^\\s]+", RegexOption.IGNORE_CASE)
 
+    private val demoStories: MutableMap<String, StatusAuthor> by lazy {
+        val now = java.time.Instant.now()
+        fun story(id: String, img: String) = StatusItem(id, "image", Media(img), caption = null, createdAt = now.minusSeconds(3600).toString(), expiresAt = now.plusSeconds(20 * 3600).toString())
+        linkedMapOf(
+            "u-ana" to StatusAuthor(UserLite("u-ana", "ananya", "Ananya Singh"), listOf(story("st-1", "https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?w=1080")), unseen = true, latestAt = now.toString()),
+            "u-roh" to StatusAuthor(UserLite("u-roh", "rohan", "Rohan Mehra"), listOf(story("st-2", "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1080")), unseen = true, latestAt = now.toString()),
+        )
+    }
+
     private fun api(r: DemoRequest): DemoResponse {
         val p = r.path
         val signedIn = r.token != null
         val m = r.method
         return when {
             p == listOf("config") -> ok(AppConfig.serializer(), config)
+            // Stories: two people with a photo each, so the viewer (reactions, comments) can be tried.
+            p == listOf("statuses") && m == "GET" -> ok(StatusesResponse.serializer(), StatusesResponse(demoStories.values.toList()))
+            p.size == 3 && p[0] == "statuses" && p[2] == "reaction" && m == "PUT" -> run {
+                val b = body(StatusReactionRequest.serializer(), r)
+                val item = demoStories.values.flatMap { it.items }.firstOrNull { it.id == p[1] } ?: return@run err(404, "not_found", "Gone")
+                val counts = item.reactions.toMutableMap()
+                item.myReaction?.let { k -> counts[k] = ((counts[k] ?: 1) - 1).coerceAtLeast(0) }
+                b.kind?.let { k -> counts[k] = (counts[k] ?: 0) + 1 }
+                val next = item.copy(myReaction = b.kind, reactions = counts.filterValues { it > 0 })
+                demoStories.replaceAll { _, a -> a.copy(items = a.items.map { if (it.id == item.id) next else it }) }
+                ok(StatusReactionResponse.serializer(), StatusReactionResponse(next.reactions, next.myReaction))
+            }
+            p.size == 3 && p[0] == "statuses" && p[2] == "comments" && m == "GET" -> ok(StatusCommentsResponse.serializer(), StatusCommentsResponse())
+            p == listOf("statuses", "seen") -> DemoResponse(204, "")
             p == listOf("me") && m == "GET" -> requireUser(r) ?: ok(MeResponse.serializer(), me.copy(user = me.user.copy(isPhoneVerified = phoneVerified), preferences = preferences,
                 counts = Counts(notifications.count { !it.isRead }, chats.filter { !it.isRequest }.sumOf { it.unread })))
             p == listOf("me") && m == "DELETE" -> requireUser(r) ?: ok(DeleteAccountResponse.serializer(), DeleteAccountResponse(deleted = true, mode = "deleted"))

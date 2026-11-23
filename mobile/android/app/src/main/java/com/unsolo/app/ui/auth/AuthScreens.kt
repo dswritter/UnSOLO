@@ -194,7 +194,14 @@ fun AuthScreen(nav: AppNav) {
     val c = Pc.colors
     // Signed in: show the check for a beat, then go back to where the person was.
     val done: () -> Unit = { vm.success = true }
-    LaunchedEffect(vm.success) { if (vm.success) { kotlinx.coroutines.delay(650); nav.back() } }
+    LaunchedEffect(vm.success) {
+        if (!vm.success) return@LaunchedEffect
+        kotlinx.coroutines.delay(650)
+        // Opened on launch because you were signed out: signed in, start on Explore.
+        if (nav.graph.authFromLaunch) { nav.graph.authFromLaunch = false; nav.popToTab(com.unsolo.app.ui.nav.Routes.EXPLORE) } else nav.back()
+    }
+    // Leaving without signing in ends the launch sign-in too.
+    DisposableEffect(Unit) { onDispose { if (!vm.success) nav.graph.authFromLaunch = false } }
     val oauth by nav.graph.oauthResult.collectAsStateWithLifecycle()
     LaunchedEffect(oauth) {
         when (val r = oauth) {

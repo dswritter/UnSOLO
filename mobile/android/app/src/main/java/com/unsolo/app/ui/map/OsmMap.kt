@@ -66,9 +66,32 @@ fun OsmMap(markers: List<MapMarker>, modifier: Modifier = Modifier, fitKey: Any?
         onDispose { lifecycle.removeObserver(obs); map.onPause(); map.onDetach() }
     }
     // Re-fit when the category changes or a different set of places arrives (cached, then fresh),
-    // but not when only the selected pin changes.
+    // but not when only the selected pin changes. A new category glides out to India first, then
+    // in to its places, so the switch reads as a move (and the places have a moment to load).
     val placesKey = remember(markers) { markers.map { it.id }.toSet() }
-    var fitted by remember(fitKey, placesKey) { mutableStateOf(false) }
+    val latest by rememberUpdatedState(markers)
+    var shownKey by remember { mutableStateOf<Any?>(null) }
+    var firstFit by remember { mutableStateOf(true) }
+    LaunchedEffect(fitKey, placesKey) {
+        val switching = !firstFit && shownKey != fitKey
+        if (switching) {
+            map.zoomToBoundingBox(INDIA, true, 0, 6.0, 650L)
+            kotlinx.coroutines.delay(700)
+        }
+        val ms = latest
+        if (ms.isEmpty()) { if (firstFit) map.post { map.zoomToBoundingBox(INDIA, false) }; return@LaunchedEffect }
+        val animate = !firstFit
+        map.post {
+            // Pins all in one spot (or one pin): centre on it. A near-zero box makes osmdroid
+            // zoom somewhere else entirely.
+            val latSpan = ms.maxOf { it.lat } - ms.minOf { it.lat }; val lngSpan = ms.maxOf { it.lng } - ms.minOf { it.lng }
+            if (ms.size == 1 || (latSpan < 0.02 && lngSpan < 0.02)) {
+                val c = GeoPoint(ms.map { it.lat }.average(), ms.map { it.lng }.average())
+                if (animate) map.controller.animateTo(c, 12.0, 900L) else { map.controller.setZoom(12.0); map.controller.setCenter(c) }
+            } else map.zoomToBoundingBox(BoundingBox.fromGeoPoints(ms.map { GeoPoint(it.lat, it.lng) }).increaseByScale(1.3f), animate, (40 * density).toInt(), 16.0, 900L)
+        }
+        firstFit = false; shownKey = fitKey
+    }
     Box(modifier.clipToBounds()) {
         AndroidView({ map }, Modifier.fillMaxSize().clipToBounds()) { mv ->
             mv.overlays.removeAll { it is Marker }
@@ -80,20 +103,6 @@ fun OsmMap(markers: List<MapMarker>, modifier: Modifier = Modifier, fitKey: Any?
                     setOnMarkerClickListener { _, _ -> onPin(m.id); true }
                     infoWindow = null
                 })
-            }
-            if (!fitted) {
-                mv.post {
-                    // Pins all in one spot (or one pin): centre on it. A near-zero box makes osmdroid
-                    // zoom somewhere else entirely.
-                    val latSpan = (markers.maxOfOrNull { it.lat } ?: 0.0) - (markers.minOfOrNull { it.lat } ?: 0.0)
-                    val lngSpan = (markers.maxOfOrNull { it.lng } ?: 0.0) - (markers.minOfOrNull { it.lng } ?: 0.0)
-                    if (markers.isEmpty()) mv.zoomToBoundingBox(INDIA, false)
-                    else if (markers.size == 1 || (latSpan < 0.02 && lngSpan < 0.02)) {
-                        mv.controller.setZoom(12.0); mv.controller.setCenter(GeoPoint(markers.map { it.lat }.average(), markers.map { it.lng }.average()))
-                    }
-                    else mv.zoomToBoundingBox(BoundingBox.fromGeoPoints(markers.map { GeoPoint(it.lat, it.lng) }).increaseByScale(1.3f), false, (40 * density).toInt())
-                }
-                if (markers.isNotEmpty()) fitted = true
             }
             mv.invalidate()
         }

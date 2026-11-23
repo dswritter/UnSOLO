@@ -58,6 +58,7 @@ import com.unsolo.app.ui.nav.Routes
 import com.unsolo.app.ui.theme.Pc
 import com.unsolo.app.ui.theme.PcIcons
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import java.io.File
 import kotlin.math.abs
 
@@ -396,16 +397,18 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
         }
         // Comment bar
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().imePadding().padding(horizontal = 12.dp, vertical = 10.dp)) {
-            if (typing) MentionSuggestions(draft, nav) { start, u -> draft = (draft.substring(0, start) + "@${u.username} ").take(500) }
+            val replyAssist = com.unsolo.app.ui.components.rememberMentionAssist(draft, repo)
+            if (typing) MentionSuggestions(replyAssist) { start, u -> draft = (draft.substring(0, start) + "@${u.username} ").take(500) }
             if (own && !typing) Text("Disappears ${expiresIn(item.expiresAt)} · saved on this phone", style = Pc.type.label, color = Color.White.copy(alpha = 0.7f), modifier = Modifier.padding(start = 6.dp, bottom = 6.dp))
             val ring by androidx.compose.animation.animateColorAsState(if (typing) Color.White else Color.White.copy(alpha = 0.55f), label = "ring")
             Row(Modifier.fillMaxWidth().clip(CircleShape).border(if (typing) 2.dp else 1.dp, ring, CircleShape).background(Color.Black.copy(alpha = if (typing) 0.55f else 0.25f))
                 .padding(start = 18.dp, end = 6.dp).heightIn(min = 46.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.weight(1f)) {
                     if (draft.isEmpty()) Text(if (own) "Add a comment…" else "Reply to ${author.user.firstName}…", style = Pc.type.body, color = Color.White.copy(alpha = 0.75f))
-                    BasicTextField(draft, { draft = it.take(500) }, textStyle = Pc.type.body.copy(color = Color.White), cursorBrush = SolidColor(Color.White), maxLines = 3,
+                    BasicTextField(draft, { draft = com.unsolo.app.ui.components.mentionTyped(draft, it.take(500), replyAssist) }, textStyle = Pc.type.body.copy(color = Color.White), cursorBrush = SolidColor(Color.White), maxLines = 3,
                         modifier = Modifier.fillMaxWidth().focusRequester(replyFocus).onFocusChanged { typing = it.isFocused })
                 }
+                com.unsolo.app.ui.components.MentionBadge(replyAssist, { draft = replyAssist!!.complete(draft, 500) }, dark = true)
                 if (draft.isNotBlank()) {
                     if (sending) androidx.compose.material3.CircularProgressIndicator(Modifier.padding(10.dp).size(20.dp), color = Color.White, strokeWidth = 2.dp)
                     else IconTap(PcIcons.Send, "Send", {
@@ -461,7 +464,7 @@ private fun FloatingEmojis(bursts: List<EmojiBurst>, modifier: Modifier, onDone:
                 val popAlpha = remember { androidx.compose.animation.core.Animatable(1f) }
                 // 2) Seven copies drift up from the react button, each at its own pace.
                 val rnd = remember { kotlin.random.Random(b.id) }
-                val parts = remember { List(7) { i -> Triple(rnd.nextFloat(), 0.7f + rnd.nextFloat() * 0.6f, i * 110 + rnd.nextInt(0, 90)) } }
+                val parts = remember { List(9) { i -> Triple(rnd.nextFloat(), 0.7f + rnd.nextFloat() * 0.6f, i * 110 + rnd.nextInt(0, 90)) } }
                 val clocks = remember { parts.map { androidx.compose.animation.core.Animatable(0f) } }
                 LaunchedEffect(Unit) {
                     launch { pop.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.45f, stiffness = 260f)) }
@@ -480,15 +483,21 @@ private fun FloatingEmojis(bursts: List<EmojiBurst>, modifier: Modifier, onDone:
                         scaleX = pop.value; scaleY = pop.value; alpha = popAlpha.value * pop.value.coerceAtMost(1f)
                     })
                     parts.forEachIndexed { i, (dx, size, _) ->
-                        val t = clocks[i].value
-                        if (t > 0f && t < 1f) Text(b.emoji, fontSize = (26 * size).sp, modifier = Modifier.graphicsLayer {
-                            // From the react button (bottom right) up and a little to the left, swaying gently.
-                            translationX = w * 0.86f - dx * w * 0.35f * t + kotlin.math.sin(t * 5f + dx * 6f) * 18f
-                            translationY = h * 0.80f - t * h * 0.5f
-                            alpha = when { t < 0.12f -> t / 0.12f; t > 0.7f -> (1f - t) / 0.3f; else -> 1f }
-                            val sc = 0.7f + t * 0.5f; scaleX = sc; scaleY = sc
-                            rotationZ = (dx - 0.5f) * 24f * t
-                        })
+                        // Always composed; the clock is read only while drawing, so each frame moves it.
+                        Text(b.emoji, fontSize = (32 * size).sp, modifier = Modifier
+                            .offset {
+                                val t = clocks[i].value
+                                // From the react button (bottom right) up and a little to the left, swaying gently.
+                                androidx.compose.ui.unit.IntOffset(
+                                    (w * 0.80f - dx * w * 0.38f * t + kotlin.math.sin(t * 5f + dx * 6f) * 22f).roundToInt(),
+                                    (h * 0.72f - t * h * 0.55f).roundToInt())
+                            }
+                            .graphicsLayer {
+                                val t = clocks[i].value
+                                alpha = when { t <= 0f || t >= 1f -> 0f; t < 0.12f -> t / 0.12f; t > 0.7f -> (1f - t) / 0.3f; else -> 1f }
+                                val sc = 0.7f + t * 0.5f; scaleX = sc; scaleY = sc
+                                rotationZ = (dx - 0.5f) * 24f * t
+                            })
                     }
                 }
             }
@@ -690,16 +699,21 @@ fun StatusComposeScreen(nav: AppNav, archiveId: String?) {
         }
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().imePadding().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             // Typing @name suggests people; picking one finishes the mention.
-            MentionSuggestions(caption, nav) { start, u -> caption = (caption.substring(0, start) + "@${u.username} ").take(500) }
+            val capAssist = com.unsolo.app.ui.components.rememberMentionAssist(caption, repo)
+            MentionSuggestions(capAssist) { start, u -> caption = (caption.substring(0, start) + "@${u.username} ").take(500) }
             if (photos.isNotEmpty()) Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Color(0x99111111)).padding(horizontal = 16.dp, vertical = 12.dp)) {
                 if (caption.isEmpty()) Text("Add a caption…", style = Pc.type.body, color = Color.White.copy(alpha = 0.6f))
-                BasicTextField(caption, { caption = it.take(500) }, textStyle = Pc.type.body.copy(color = Color.White), cursorBrush = SolidColor(Color.White), modifier = Modifier.fillMaxWidth())
+                BasicTextField(caption, { caption = com.unsolo.app.ui.components.mentionTyped(caption, it.take(500), capAssist) }, textStyle = Pc.type.body.copy(color = Color.White), cursorBrush = SolidColor(Color.White), modifier = Modifier.fillMaxWidth().padding(end = 96.dp))
+                Box(Modifier.align(Alignment.CenterEnd)) { com.unsolo.app.ui.components.MentionBadge(capAssist, { caption = capAssist!!.complete(caption, 500) }, dark = true) }
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                IconTap(PcIcons.Camera, "Take a photo", { openCamera() }, tint = Color.White,
-                    modifier = Modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.16f)))
-                IconTap(PcIcons.Image, "Add photos from your gallery", { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, tint = Color.White,
-                    modifier = Modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.16f)))
+                // Adding more once there's a photo (with none yet, the big Camera / Gallery tiles do it).
+                if (photos.isNotEmpty()) {
+                    IconTap(PcIcons.Camera, "Take another photo", { openCamera() }, tint = Color.White,
+                        modifier = Modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.16f)))
+                    IconTap(PcIcons.Image, "Add more from your gallery", { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, tint = Color.White,
+                        modifier = Modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.16f)))
+                }
                 AudienceChip("@ Tag people", false) { tagging = true }
                 val tagged = extractMentions(caption).size
                 if (tagged > 0) Text("$tagged tagged", style = Pc.type.label, color = Color.White.copy(alpha = 0.75f))
@@ -773,28 +787,14 @@ private fun mentionText(text: String, onMention: (String) -> Unit): androidx.com
 
 /** People matching the @name being typed, in a row above the caption. Tapping one finishes it ([onPick] gets where the @ starts). */
 @Composable
-private fun MentionSuggestions(caption: String, nav: AppNav, onPick: (Int, UserLite) -> Unit) {
-    val m = MENTION_TAIL.find(caption)
-    val q = m?.groupValues?.get(2).orEmpty()
-    var hits by remember { mutableStateOf<List<UserLite>>(emptyList()) }
-    var searching by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { nav.graph.statuses.warmPeople() }
-    LaunchedEffect(m != null, q) {
-        if (m == null || q.isEmpty()) { hits = emptyList(); return@LaunchedEffect }
-        // People we already know show at once; the server's answer fills in a moment later.
-        hits = nav.graph.statuses.peopleNow(q)
-        searching = true
-        kotlinx.coroutines.delay(120)
-        hits = nav.graph.statuses.people(q)
-        searching = false
-    }
-    if (m == null) return
-    val start = m.range.first + m.groupValues[1].length
+private fun MentionSuggestions(a: com.unsolo.app.ui.components.MentionAssist?, onPick: (Int, UserLite) -> Unit) {
+    a ?: return
+    // The best match sits ticked inside the box; the others ride above it.
     when {
-        q.isEmpty() -> Text("Type a name or username to mention someone", style = Pc.type.small, color = Color.White.copy(alpha = 0.7f))
-        hits.isEmpty() -> Text(if (searching) "Looking for “$q”…" else "No one called “$q” on UnSOLO", style = Pc.type.small, color = Color.White.copy(alpha = 0.7f))
-        else -> LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(hits, key = { it.id }) { u -> PersonChip(u) { onPick(start, u) } }
+        a.query.isEmpty() -> Text("Type a name or username to mention someone", style = Pc.type.small, color = Color.White.copy(alpha = 0.7f))
+        a.hits.isEmpty() -> Text("Looking for “${a.query}”…", style = Pc.type.small, color = Color.White.copy(alpha = 0.7f))
+        a.others.isNotEmpty() -> LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(a.others, key = { it.id }) { u -> PersonChip(u) { onPick(a.start, u) } }
         }
     }
 }

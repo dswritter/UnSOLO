@@ -277,6 +277,9 @@ fun AppRoot(graph: AppGraph, startRoute: String, newIntents: Flow<Intent>) {
         owner.lifecycle.addObserver(obs)
         onDispose { owner.lifecycle.removeObserver(obs) }
     }
+    LaunchedEffect(Unit) {
+        if (graph.signInOnLaunch) { graph.signInOnLaunch = false; graph.authFromLaunch = true; nav.to(Routes.AUTH) }
+    }
     LaunchedEffect(Unit) { vm.checkLanding() }
     // Saved trips follow you across devices (and power the price-drop / nearly-full alerts).
     val signedInNow by nav.graph.account.isSignedIn.collectAsStateWithLifecycle()
@@ -335,7 +338,7 @@ fun AppRoot(graph: AppGraph, startRoute: String, newIntents: Flow<Intent>) {
         }, onHosting = { postSheet = false; nav.to(Routes.HOST) })
         com.unsolo.app.ui.status.UploadSheet(nav)
         held?.let { h -> HeldPromptSheet(h.prompts, onDismiss = { held = null }, onOpen = { held = null; nav.to(Routes.post(h.postId)) }, onHost = { held = null; nav.openWeb("/host") }) }
-        landing?.let { tab -> LandingPromptSheet(tab, onAccept = { vm.acceptLanding(tab) }, onDismiss = { vm.dismissLanding() }) }
+        landing?.takeIf { route != Routes.AUTH }?.let { tab -> LandingPromptSheet(tab, onAccept = { vm.acceptLanding(tab) }, onDismiss = { vm.dismissLanding() }) }
     }
 }
 

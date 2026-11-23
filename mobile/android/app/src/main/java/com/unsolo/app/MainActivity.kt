@@ -35,6 +35,8 @@ class MainActivity : ComponentActivity() {
             app.graph.analytics.track("app.open", props = mapOf("coldStart" to app.coldStart, "landingTab" to prefs.landingTab))
             app.coldStart = false
         }
+        // Signed out and opened fresh (not from a link or a notification): start at sign-in.
+        if (savedInstanceState == null && intent?.data == null && intent?.extras?.isEmpty != false && !app.graph.session.isSignedIn) app.graph.signInOnLaunch = true
         handlePushOpen(intent)
         handleAuthCallback(intent)
         setContent {

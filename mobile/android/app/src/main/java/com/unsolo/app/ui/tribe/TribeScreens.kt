@@ -680,7 +680,8 @@ private fun CommentBar(me: UserLite?, replyTo: Comment?, statuses: com.unsolo.ap
     Column(Modifier.fillMaxWidth().background(c.raised.copy(alpha = 0.97f)).navigationBarsPadding().imePadding()) {
         Hairline()
         // Type @ to mention someone; they get a notification.
-        MentionPicker(text, statuses, { text = it })
+        val assist = rememberMentionAssist(text, statuses)
+        MentionPicker(text, statuses, { text = it }, assist = assist)
         if (replyTo != null) Row(Modifier.padding(start = Gutter, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Replying to ${replyTo.author.firstName}", style = Pc.type.label, color = c.ink2, modifier = Modifier.weight(1f))
             IconTap(PcIcons.Close, "Cancel reply", onCancelReply, iconSize = 18.dp)
@@ -688,7 +689,10 @@ private fun CommentBar(me: UserLite?, replyTo: Comment?, statuses: com.unsolo.ap
         Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Avatar(me, 34.dp)
             Spacer(Modifier.width(8.dp))
-            BoxedInput(text, { text = it.take(2000) }, placeholder, Modifier.weight(1f), singleLine = false)
+            Box(Modifier.weight(1f)) {
+                BoxedInput(text, { text = mentionTyped(text, it.take(2000), assist) }, placeholder, Modifier.fillMaxWidth(), singleLine = false)
+                Box(Modifier.align(Alignment.CenterEnd).padding(end = 8.dp)) { MentionBadge(assist, { text = assist!!.complete(text) }) }
+            }
             Spacer(Modifier.width(8.dp))
             SendButton(enabled = text.isNotBlank()) { onSend(text.trim()); text = "" }
         }

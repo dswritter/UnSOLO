@@ -49,6 +49,9 @@ class AppGraph(val app: UnsoloApp) {
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val settings = LocalSettings(app)
     val session = SessionManager(TokenStore(app))
+    /** Signed out on a fresh launch: open sign-in first; after signing in from there, go to Explore. */
+    @Volatile var signInOnLaunch = false
+    @Volatile var authFromLaunch = false
     val db: AppDatabase by lazy { AppDatabase.build(app) }
     val events = AppEvents()
     private val demoBackend = lazy { DemoBackend(app) }
