@@ -22,13 +22,14 @@ export const GET = route(async (req: Request) => {
   const pins: Record<string, unknown>[] = []
 
   if (want('trips')) {
-    const trips = await loadUpcomingTrips(ctx, { limit: 200 })
+    // Trips whose dates have all passed show too (greyed in the apps; hosts add dates on request).
+    const trips = await loadUpcomingTrips(ctx, { limit: 200, includeUndated: true })
     const { data: dests } = await svc.from('destinations').select('slug, lat, lng').not('lat', 'is', null)
     const at = new Map(((dests ?? []) as Row[]).map((d) => [String(d.slug), { lat: Number(d.lat), lng: Number(d.lng) }]))
     for (const t of trips.items) {
       const p = at.get(t.place?.slug ?? '')
       if (p) pins.push({ kind: 'trip', id: t.id, slug: t.slug, title: t.title, place: t.place?.name ?? null, lat: p.lat, lng: p.lng,
-        priceFromPaise: t.priceFromPaise, date: t.nextDeparture, seatsLeft: t.seatsLeft, image: t.image })
+        priceFromPaise: t.priceFromPaise, date: t.nextDeparture, seatsLeft: t.nextDeparture ? t.seatsLeft : null, past: !t.nextDeparture, image: t.image })
     }
     // Fill in a few missing destinations after we answer (next request has them).
     if (trips.items.some((t) => t.place?.slug && !at.has(t.place.slug))) after(() => geocodeMissingDestinations(svc, 5).then(() => undefined))

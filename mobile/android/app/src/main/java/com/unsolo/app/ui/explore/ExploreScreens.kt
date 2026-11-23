@@ -475,29 +475,49 @@ private fun ExploreSearchSheet(vm: ExploreViewModel, count: Int, onDismiss: () -
     val open by vm.openOnly.collectAsStateWithLifecycle()
     val price by vm.price.collectAsStateWithLifecycle()
     val focus = remember { FocusRequester() }
+    // One filter open at a time; the search box and the results button sit at the bottom, by your thumb.
+    var openRow by rememberSaveable { mutableStateOf<String?>(null) }
+    val catLabel = Categories.firstOrNull { it.first == cat }?.second ?: "Trips"
     PcSheet(onDismiss) {
-        SheetTitle("Search")
-        Column(Modifier.padding(horizontal = Gutter)) {
+        SheetTitle("Find your trip")
+        Column(Modifier.padding(horizontal = Gutter), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterRow("What", catLabel, openRow == "what", { openRow = if (openRow == "what") null else "what" }) {
+                Categories.forEach { (k, l) -> PcChip(l, cat == k, { vm.category.value = k; openRow = null }, icon = CategoryIcons[k]) }
+            }
+            FilterRow("When", w.label, openRow == "when", { openRow = if (openRow == "when") null else "when" }) {
+                WhenWindow.entries.forEach { o -> PcChip(o.label, w == o, { vm.window.value = o; openRow = null }) }
+            }
+            FilterRow("Price", price.label, openRow == "price", { openRow = if (openRow == "price") null else "price" }) {
+                PriceCap.entries.forEach { o -> PcChip(o.label, price == o, { vm.price.value = o; openRow = null }) }
+            }
+        }
+        SwitchRow("Only open spots", "Hide full departures", open, { vm.openOnly.value = it }, Modifier.padding(horizontal = 4.dp))
+        Column(Modifier.padding(horizontal = Gutter).padding(top = 6.dp)) {
             BoxedInput(q, { vm.query.value = it.take(80) }, "Where to? Spiti, Kasol, Bhutan…", Modifier.focusRequester(focus), leadingIcon = PcIcons.Search)
-            SheetLabel("When")
         }
-        FlowRow(Modifier.padding(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            WhenWindow.entries.forEach { o -> PcChip(o.label, w == o, { vm.window.value = o }) }
-        }
-        Column(Modifier.padding(horizontal = Gutter)) { SheetLabel("What") }
-        FlowRow(Modifier.padding(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Categories.forEach { (k, l) -> PcChip(l, cat == k, { vm.category.value = k }, icon = CategoryIcons[k]) }
-        }
-        Column(Modifier.padding(horizontal = Gutter)) { SheetLabel("Price per person") }
-        FlowRow(Modifier.padding(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            PriceCap.entries.forEach { o -> PcChip(o.label, price == o, { vm.price.value = o }) }
-        }
-        Spacer(Modifier.height(6.dp))
-        SwitchRow("Only departures with open spots", "Hide full circles", open, { vm.openOnly.value = it }, Modifier.padding(horizontal = 4.dp))
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(12.dp))
         Row(Modifier.padding(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            PcButton("Clear", { vm.clearFilters() }, kind = BtnKind.Ghost)
-            PcButton(if (count == 1) "Show 1 result" else "Show $count results", onShow, Modifier.weight(1f), kind = BtnKind.Accent)
+            PcButton("Clear", { vm.clearFilters(); openRow = null }, kind = BtnKind.Ghost)
+            PcButton(if (count == 1) "Show 1 result" else "Show $count results", onShow, Modifier.weight(1f), kind = BtnKind.Accent, height = 52.dp)
+        }
+    }
+}
+
+/** A filter as one line ("When · Any week"); tap to open its choices underneath. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FilterRow(title: String, value: String, expanded: Boolean, onToggle: () -> Unit, choices: @Composable FlowRowScope.() -> Unit) {
+    val c = Pc.colors
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(if (expanded) c.raised else c.tonal)
+        .border(1.dp, if (expanded) c.ink else Color.Transparent, RoundedCornerShape(18.dp))) {
+        Row(Modifier.fillMaxWidth().clickable(onClickLabel = "Change $title", onClick = onToggle).padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Text(title, style = Pc.type.small, color = c.ink2, modifier = Modifier.width(64.dp))
+            Text(value, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            PcIcon(if (expanded) PcIcons.ChevronUp else PcIcons.ChevronDown, null, tint = c.ink2, size = 18.dp)
+        }
+        androidx.compose.animation.AnimatedVisibility(expanded) {
+            FlowRow(Modifier.padding(start = 12.dp, end = 12.dp, bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = choices)
         }
     }
 }

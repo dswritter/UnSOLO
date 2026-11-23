@@ -289,6 +289,14 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
     val tick = rememberTick(strong = true)
     val replyFocus = remember { androidx.compose.ui.focus.FocusRequester() }
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    // Keyboard closed (Back, or swiped down): let go of the reply box so the story carries on.
+    @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+    val imeOpen = WindowInsets.isImeVisible
+    var imeWasOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(imeOpen) {
+        if (imeOpen) imeWasOpen = true
+        else if (imeWasOpen) { imeWasOpen = false; focus.clearFocus() }
+    }
     // Swiped up: put the cursor in the reply box and bring up the keyboard.
     LaunchedEffect(replyAsk) {
         if (replyAsk > 0 && active) { runCatching { replyFocus.requestFocus() }; keyboard?.show() }
@@ -350,13 +358,12 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
         // Instagram-style: actions stacked on the right, a full-width comment bar along the bottom.
         val mine = item.myReaction
         val total = item.reactions.values.sum()
-        // A tap always celebrates (and keeps your reaction); taking it back is in the hold-to-pick row.
-        fun react(k: String, toggleOff: Boolean = false) {
+        // Tap reacts (with the float-up); tap again takes it back.
+        fun react(k: String) {
             if (!nav.requirePhone()) return
             tick()
-            if (mine == k && toggleOff) { scope.launch { repo.react(item, k) }; return }
-            bursts += EmojiBurst(System.nanoTime(), StatusReactions.toMap()[k] ?: "🏔️")
-            if (mine != k) scope.launch { repo.react(item, k) }
+            if (mine != k) bursts += EmojiBurst(System.nanoTime(), StatusReactions.toMap()[k] ?: "🏔️")
+            scope.launch { repo.react(item, k) }
         }
         item.caption?.takeIf { item.type == "image" }?.let {
             Text(mentionText(it) { u -> nav.to(Routes.profile(u)) }, style = Pc.type.bodyStrong, color = Color.White,
@@ -384,7 +391,7 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
             horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             StatusReactions.forEach { (k, e) ->
                 Text(e, fontSize = 30.sp, modifier = Modifier.clip(CircleShape).background(if (mine == k) Color.White.copy(alpha = 0.25f) else Color.Transparent)
-                    .clickable(onClickLabel = if (mine == k) "Take back ${reactionLabel(k)}" else reactionLabel(k)) { picker = false; react(k, toggleOff = true) }.padding(6.dp))
+                    .clickable(onClickLabel = if (mine == k) "Take back ${reactionLabel(k)}" else reactionLabel(k)) { picker = false; react(k) }.padding(6.dp))
             }
         }
         // Comment bar
@@ -615,12 +622,11 @@ fun StatusComposeScreen(nav: AppNav, archiveId: String?) {
         shot = u
         runCatching { camera.launch(u) }.onFailure { shot = null; nav.graph.events.emit(AppEvent.Message("No camera app found.")) }
     }
-    var asked by remember { mutableStateOf(false) }
     LaunchedEffect(archiveId) {
         if (archiveId != null) {
             repo.loadArchive()
             repo.archive.value.firstOrNull { it.id == archiveId }?.let { a -> photos += Uri.fromFile(File(a.path)); if (caption.isBlank()) caption = a.caption.orEmpty() }
-        } else if (!asked) { asked = true; picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
+        }
     }
     DarkBars()
     Box(Modifier.fillMaxSize().background(Color.Black)) {
@@ -628,7 +634,17 @@ fun StatusComposeScreen(nav: AppNav, archiveId: String?) {
             Column(Modifier.fillMaxSize().padding(28.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                 BasicTextField(caption, { caption = it.take(500) }, textStyle = Pc.type.display.copy(fontSize = 26.sp, color = Color.White, textAlign = TextAlign.Center),
                     cursorBrush = SolidColor(Color.White), modifier = Modifier.fillMaxWidth(),
-                    decorationBox = { inner -> Box(contentAlignment = Alignment.Center) { if (caption.isEmpty()) Text("Type a story, or add photos", style = Pc.type.display.copy(fontSize = 24.sp), color = Color.White.copy(alpha = 0.5f), textAlign = TextAlign.Center); inner() } })
+                    decorationBox = { inner -> Box(contentAlignment = Alignment.Center) { if (caption.isEmpty()) Text("Type a story", style = Pc.type.display.copy(fontSize = 24.sp), color = Color.White.copy(alpha = 0.5f), textAlign = TextAlign.Center); inner() } })
+                // Or start from a photo: the camera or your gallery.
+                if (caption.isBlank()) {
+                    Spacer(Modifier.height(28.dp))
+                    Text("or add a photo", style = Pc.type.small, color = Color.White.copy(alpha = 0.6f))
+                    Spacer(Modifier.height(14.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        StartTile(PcIcons.Camera, "Camera") { openCamera() }
+                        StartTile(PcIcons.Image, "Gallery") { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
+                    }
+                }
             }
         } else {
             val pager = rememberPagerState { photos.size }
@@ -715,6 +731,17 @@ fun StatusComposeScreen(nav: AppNav, archiveId: String?) {
                 }, kind = BtnKind.Accent, loading = preparing, enabled = (photos.isNotEmpty() || caption.isNotBlank()) && !posting)
             }
         }
+    }
+}
+
+@Composable
+private fun StartTile(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    Column(Modifier.size(width = 118.dp, height = 104.dp).clip(RoundedCornerShape(22.dp)).background(Color.White.copy(alpha = 0.12f))
+        .border(1.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(22.dp)).clickable(onClickLabel = label, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        PcIcon(icon, null, tint = Color.White, size = 30.dp)
+        Spacer(Modifier.height(8.dp))
+        Text(label, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = Color.White)
     }
 }
 

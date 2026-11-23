@@ -1,5 +1,6 @@
 import { Navbar } from '@/components/layout/Navbar'
 import { PresenceTracker } from '@/components/layout/PresenceTracker'
+import { GetTheApp } from '@/components/layout/GetTheApp'
 import { FooterWrapper } from '@/components/layout/FooterWrapper'
 // Sticky chat button temporarily hidden — re-enable with imports below if/when needed
 // import { DeferredChatNotificationWidget } from '@/components/layout/DeferredChatNotificationWidget'
@@ -37,6 +38,7 @@ export default function MainLayout({
           {children}
         </MainScrollContainer>
         <PresenceTracker />
+        <GetTheApp />
         {/* Sticky chat button temporarily hidden — Meet Travellers is reachable from the bottom nav */}
         <BottomShellNav />
         <Suspense fallback={null}>

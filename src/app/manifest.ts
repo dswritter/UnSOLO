@@ -16,6 +16,9 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
       { src: '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
+    // Android Chrome offers the Play Store app instead of installing the web app.
+    related_applications: [{ platform: 'play', id: 'in.unsolo.app', url: 'https://play.google.com/store/apps/details?id=in.unsolo.app' }],
+    prefer_related_applications: true,
     shortcuts: [
       { name: 'Tribe', url: '/tribe' },
       { name: 'Post', url: '/tribe/new' },

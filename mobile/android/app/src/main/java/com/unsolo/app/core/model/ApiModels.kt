@@ -455,7 +455,7 @@ data class PatchMeRequest(
 @Serializable data class BuddiesResponse(val items: List<Buddy> = emptyList())
 @Serializable data class MapPin(val kind: String, val id: String, val slug: String? = null, val postId: String? = null, val title: String = "", val place: String? = null,
                                 val lat: Double, val lng: Double, val priceFromPaise: Long? = null, val unit: String? = null, val date: String? = null,
-                                val seatsLeft: Int? = null, val spotsLeft: Int? = null, val image: Media? = null)
+                                val seatsLeft: Int? = null, val spotsLeft: Int? = null, val image: Media? = null, val past: Boolean = false)
 @Serializable data class MapPinsResponse(val pins: List<MapPin> = emptyList())
 @Serializable data class ReviewCreate(val bookingId: String, val ratingDestination: Int, val ratingExperience: Int, val title: String? = null, val body: String? = null, val photos: List<String> = emptyList())
 @Serializable data class IdResponse(val id: String = "")

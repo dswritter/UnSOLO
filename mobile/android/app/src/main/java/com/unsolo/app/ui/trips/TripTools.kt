@@ -552,7 +552,7 @@ fun ExploreMapScreen(nav: AppNav, startCategory: String) {
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             val list = pins.orEmpty()
-            OsmMap(list.map { p -> MapMarker(p.kind + p.id, p.lat, p.lng, if (p.kind == "plan") Fmt.dayMonth(p.date).ifEmpty { "Plan" } else shortRupees(p.priceFromPaise), colorFor(p.kind), selected == p.kind + p.id) },
+            OsmMap(list.map { p -> MapMarker(p.kind + p.id, p.lat, p.lng, if (p.kind == "plan") Fmt.dayMonth(p.date).ifEmpty { "Plan" } else shortRupees(p.priceFromPaise), if (p.past) c.ink3 else colorFor(p.kind), selected == p.kind + p.id) },
                 Modifier.fillMaxSize(), fitKey = category) { selected = it }
             if (pins == null && failed) Row(Modifier.align(Alignment.TopCenter).padding(10.dp).clip(CircleShape).background(c.raised).clickable { attempt++ }.padding(horizontal = 14.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically) {
@@ -572,7 +572,7 @@ fun ExploreMapScreen(nav: AppNav, startCategory: String) {
                         Text(listOfNotNull(p.place, p.date?.let { Fmt.dowDayMonth(it) }).joinToString(" · "), style = Pc.type.small, color = c.ink2, maxLines = 1)
                         Text(when (p.kind) {
                             "plan" -> "${p.spotsLeft ?: 0} spots open"
-                            "trip" -> "${MoneyFormat.rupees(p.priceFromPaise ?: 0)}/person" + (p.seatsLeft?.let { " · $it left" } ?: "")
+                            "trip" -> "${MoneyFormat.rupees(p.priceFromPaise ?: 0)}/person" + (if (p.past) " · Ask for dates" else p.seatsLeft?.let { " · $it left" } ?: "")
                             else -> "${MoneyFormat.rupees(p.priceFromPaise ?: 0)}/${p.unit ?: "booking"}"
                         }, style = Pc.type.smallStrong, color = c.ink)
                     }

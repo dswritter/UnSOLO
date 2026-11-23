@@ -83,8 +83,14 @@ fun OsmMap(markers: List<MapMarker>, modifier: Modifier = Modifier, fitKey: Any?
             }
             if (!fitted) {
                 mv.post {
+                    // Pins all in one spot (or one pin): centre on it. A near-zero box makes osmdroid
+                    // zoom somewhere else entirely.
+                    val latSpan = (markers.maxOfOrNull { it.lat } ?: 0.0) - (markers.minOfOrNull { it.lat } ?: 0.0)
+                    val lngSpan = (markers.maxOfOrNull { it.lng } ?: 0.0) - (markers.minOfOrNull { it.lng } ?: 0.0)
                     if (markers.isEmpty()) mv.zoomToBoundingBox(INDIA, false)
-                    else if (markers.size == 1) { mv.controller.setZoom(11.0); mv.controller.setCenter(GeoPoint(markers[0].lat, markers[0].lng)) }
+                    else if (markers.size == 1 || (latSpan < 0.02 && lngSpan < 0.02)) {
+                        mv.controller.setZoom(12.0); mv.controller.setCenter(GeoPoint(markers.map { it.lat }.average(), markers.map { it.lng }.average()))
+                    }
                     else mv.zoomToBoundingBox(BoundingBox.fromGeoPoints(markers.map { GeoPoint(it.lat, it.lng) }).increaseByScale(1.3f), false, (40 * density).toInt())
                 }
                 if (markers.isNotEmpty()) fitted = true
