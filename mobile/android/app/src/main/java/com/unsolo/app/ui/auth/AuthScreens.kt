@@ -31,6 +31,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.shadow
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.animateFloat
 import com.unsolo.app.ui.theme.PcTokens
@@ -249,33 +252,55 @@ private fun StepTitle(title: String, sub: (@Composable () -> Unit)? = null) {
 private fun WelcomeStep(vm: AuthViewModel, nav: AppNav, done: () -> Unit) {
     val c = Pc.colors
     val activity = androidx.compose.ui.platform.LocalContext.current
-    CenteredStep {
-        Wordmark()
-        Spacer(Modifier.height(18.dp))
-        Text("Meet your people\nbefore you go.", style = Pc.type.display, color = c.ink, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-        Spacer(Modifier.height(24.dp))
-        // Three travellers in, your gold seat drawing in, the rest open: take your place.
-        SeatRing(total = 8, taken = 3, size = 136.dp, you = YouSeat.You,
-            people = listOf(UserLite("h", name = "Tent It"), UserLite("a", name = "Ananya Singh"), UserLite("r", name = "Rohan Mehra")),
-            spotsLabel = true, contentDescription = "A circle of 8 spots: 3 taken, yours, and 4 open")
-        Spacer(Modifier.height(32.dp))
-        PcButton("Continue with Google", { vm.pending = "google"; vm.google(activity, { nav.openAuthUrl(it) }, done) }, Modifier.fillMaxWidth(),
-            enabled = !vm.busy || vm.pending == "google", loading = vm.busy && vm.pending == "google",
-            leading = { androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(com.unsolo.app.R.drawable.ic_google), null, Modifier.size(20.dp).clip(androidx.compose.foundation.shape.CircleShape).background(androidx.compose.ui.graphics.Color.White).padding(2.dp)) })
-        Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            PcButton("Phone", { vm.error = null; vm.step = "phone" }, Modifier.weight(1f), kind = BtnKind.Outline, icon = PcIcons.Phone, enabled = !vm.busy)
-            PcButton("Email", { vm.error = null; vm.step = "email" }, Modifier.weight(1f), kind = BtnKind.Outline, icon = PcIcons.Mail, enabled = !vm.busy)
-        }
-        vm.error?.let { Text(it, style = Pc.type.smallStrong, color = c.red, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 12.dp)) }
-        if (DemoMode.enabled) {
+    val center = androidx.compose.ui.text.style.TextAlign.Center
+    Column(Modifier.fillMaxSize()) {
+        // Top: why sign in. Scrolls on small screens; the actions below never move.
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = Gutter),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Spacer(Modifier.height(8.dp))
+            Wordmark()
+            Spacer(Modifier.height(20.dp))
+            // Three travellers in, your gold seat drawing in, the rest open: take your place.
+            SeatRing(total = 8, taken = 3, size = 156.dp, you = YouSeat.You,
+                people = listOf(UserLite("h", name = "Tent It"), UserLite("a", name = "Ananya Singh"), UserLite("r", name = "Rohan Mehra")),
+                spotsLabel = true, contentDescription = "A circle of 8 spots: 3 taken, yours, and 4 open")
+            Spacer(Modifier.height(22.dp))
+            Text("Meet your people\nbefore you go.", style = Pc.type.display.copy(fontSize = 32.sp, lineHeight = 36.sp), color = c.ink, textAlign = center)
             Spacer(Modifier.height(10.dp))
-            PcButton("Use the demo traveller", { vm.demo(done) }, Modifier.fillMaxWidth(), kind = BtnKind.Outline, dashed = true, enabled = !vm.busy)
+            Text("See who's going, save your seat, chat with your group and share stories from the road.", style = Pc.type.body, color = c.ink2, textAlign = center)
+            Spacer(Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Verified travellers", "Group chats", "Safe trips").forEach {
+                    Text(it, style = Pc.type.label, color = c.ink, modifier = Modifier.clip(CircleShape).background(c.tonal).padding(horizontal = 10.dp, vertical = 6.dp))
+                }
+            }
+            Spacer(Modifier.height(16.dp))
         }
-        Spacer(Modifier.height(6.dp))
-        PcButton("Not now", { nav.back() }, kind = BtnKind.Ghost)
-        Spacer(Modifier.height(8.dp))
-        Text("By continuing you agree to the Terms and Refund policy. 18+ only.", style = Pc.type.small, color = c.ink3, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        // Bottom: the actions, where your thumb is.
+        Column(Modifier.fillMaxWidth().shadow(18.dp, RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp), clip = false)
+            .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).background(c.raised)
+            .navigationBarsPadding().padding(start = Gutter, end = Gutter, top = 20.dp, bottom = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("Join UnSOLO free", style = Pc.type.bodyStrong.copy(fontSize = 20.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold), color = c.ink)
+            Text("Sign in or create an account in seconds", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(top = 2.dp, bottom = 14.dp))
+            PcButton("Continue with Google", { vm.pending = "google"; vm.google(activity, { nav.openAuthUrl(it) }, done) }, Modifier.fillMaxWidth(),
+                kind = BtnKind.Accent, height = 56.dp,
+                enabled = !vm.busy || vm.pending == "google", loading = vm.busy && vm.pending == "google",
+                leading = { androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(com.unsolo.app.R.drawable.ic_google), null, Modifier.size(22.dp).clip(CircleShape).background(androidx.compose.ui.graphics.Color.White).padding(2.dp)) })
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                PcButton("Phone", { vm.error = null; vm.step = "phone" }, Modifier.weight(1f), kind = BtnKind.Outline, icon = PcIcons.Phone, enabled = !vm.busy)
+                PcButton("Email", { vm.error = null; vm.step = "email" }, Modifier.weight(1f), kind = BtnKind.Outline, icon = PcIcons.Mail, enabled = !vm.busy)
+            }
+            vm.error?.let { Text(it, style = Pc.type.smallStrong, color = c.red, textAlign = center, modifier = Modifier.padding(top = 12.dp)) }
+            if (DemoMode.enabled) {
+                Spacer(Modifier.height(10.dp))
+                PcButton("Use the demo traveller", { vm.demo(done) }, Modifier.fillMaxWidth(), kind = BtnKind.Outline, dashed = true, enabled = !vm.busy)
+            }
+            Spacer(Modifier.height(4.dp))
+            PcButton("Not now", { nav.back() }, kind = BtnKind.Ghost)
+            Text("By continuing you agree to the Terms and Refund policy. 18+ only.", style = Pc.type.label, color = c.ink3, textAlign = center)
+        }
     }
 }
 
@@ -540,6 +565,44 @@ fun PhoneVerifyScreen(nav: AppNav) {
             Spacer(Modifier.height(16.dp))
             if (!vm.sent) PcButton("Send code", { vm.start() }, Modifier.fillMaxWidth(), enabled = !vm.busy && vm.phone.length == 10)
             else PcButton("Verify", { vm.verify { nav.back() } }, Modifier.fillMaxWidth(), enabled = !vm.busy && SmsOtp.isValid(vm.code))
+        }
+    }
+}
+
+/**
+ * Signed out on a tab that needs an account (You, Bookings, chats): why it's worth it up top,
+ * the sign-in button down where your thumb is.
+ */
+@Composable
+fun SignInInvite(nav: AppNav, title: String = "Your trips start here", body: String = "Sign in to join trips and plans, chat with your group and share stories.", footer: (@Composable ColumnScope.() -> Unit)? = null) {
+    val c = Pc.colors
+    val center = androidx.compose.ui.text.style.TextAlign.Center
+    Column(Modifier.fillMaxSize()) {
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = Gutter),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            SeatRing(total = 8, taken = 3, size = 150.dp, you = YouSeat.You,
+                people = listOf(UserLite("h", name = "Tent It"), UserLite("a", name = "Ananya Singh"), UserLite("r", name = "Rohan Mehra")),
+                spotsLabel = true, contentDescription = "A circle of 8 spots: 3 taken, yours, and 4 open")
+            Spacer(Modifier.height(22.dp))
+            Text(title, style = Pc.type.display.copy(fontSize = 28.sp, lineHeight = 32.sp), color = c.ink, textAlign = center)
+            Spacer(Modifier.height(8.dp))
+            Text(body, style = Pc.type.body, color = c.ink2, textAlign = center)
+            Spacer(Modifier.height(18.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                listOf(PcIcons.User to "See who's going before you book", PcIcons.Chat to "Chat with your trip group", PcIcons.Camera to "Share stories from the road").forEach { (ic, t) ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(30.dp).clip(CircleShape).background(c.tonal), contentAlignment = Alignment.Center) { PcIcon(ic, null, tint = c.ink, size = 16.dp) }
+                        Spacer(Modifier.width(10.dp))
+                        Text(t, style = Pc.type.bodyStrong, color = c.ink)
+                    }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+        Column(Modifier.fillMaxWidth().padding(start = Gutter, end = Gutter, bottom = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            PcButton("Sign in or create account", { nav.to(com.unsolo.app.ui.nav.Routes.AUTH) }, Modifier.fillMaxWidth(), kind = BtnKind.Accent, height = 56.dp)
+            Text("Free · Google, phone or email · takes a minute", style = Pc.type.label, color = c.ink3, modifier = Modifier.padding(top = 8.dp))
+            footer?.invoke(this)
         }
     }
 }

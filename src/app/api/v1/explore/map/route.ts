@@ -37,7 +37,7 @@ export const GET = route(async (req: Request) => {
     if (!want(c)) continue
     const { items } = await loadServiceListings(ctx, c, { limit: 100 })
     for (const t of items) if (t.place?.lat != null && t.place?.lng != null) {
-      pins.push({ kind: c.slice(0, -1), id: t.id, slug: t.slug, title: t.title, place: t.place.name, lat: t.place.lat, lng: t.place.lng,
+      pins.push({ kind: ({ stays: 'stay', activities: 'activity', rentals: 'rental' } as const)[c], id: t.id, slug: t.slug, title: t.title, place: t.place.name, lat: t.place.lat, lng: t.place.lng,
         priceFromPaise: t.priceFromPaise, unit: t.unit ?? null, image: t.image })
     }
   }

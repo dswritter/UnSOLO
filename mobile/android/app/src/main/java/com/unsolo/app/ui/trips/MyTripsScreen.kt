@@ -50,7 +50,7 @@ fun MyTripsScreen(nav: AppNav) {
     if (!signedIn) {
         Column(Modifier.fillMaxSize().background(c.paper)) {
             PageHeader("Bookings", counts, { nav.to(Routes.AUTH) }, { nav.to(Routes.AUTH) })
-            EmptyState("Your bookings live here", "Sign in to see trips, stays, activities and rentals you've booked, plans you've joined and their group chats.", action = "Sign in", onAction = { nav.to(Routes.AUTH) })
+            Box(Modifier.weight(1f)) { com.unsolo.app.ui.auth.SignInInvite(nav, "Your bookings live here", "Sign in to see the trips, stays, activities and rentals you've booked, the plans you've joined and their group chats.") }
         }
         return
     }

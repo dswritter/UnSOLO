@@ -259,11 +259,7 @@ fun ExploreScreen(nav: AppNav) {
             // The tabs stay pinned while you scroll; swiping the page left or right also switches them.
             stickyHeader(key = "tabs", contentType = "tabs") {
                 Column(Modifier.fillMaxWidth().background(c.paper).then(if (tabsStuck) Modifier.statusBarsPadding() else Modifier)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.weight(1f)) { TextTabs(Categories, category, { vm.category.value = it }, icons = CategoryIcons) }
-                        // Same category, on a map.
-                        IconTap(PcIcons.Pin, "Show on map", { nav.to(Routes.exploreMap(category)) })
-                    }
+                    TextTabs(Categories, category, { vm.category.value = it }, icons = CategoryIcons)
                     Spacer(Modifier.height(6.dp))
                 }
             }
@@ -334,7 +330,7 @@ fun ExploreScreen(nav: AppNav) {
         }
         SearchDock(
             label = query.ifBlank { "Where to?" }, sub = window.label, filters = vm.filterCount,
-            onClick = { searchSheet = true },
+            onClick = { searchSheet = true }, onMap = { nav.to(Routes.exploreMap(category)) },
             modifier = Modifier.align(Alignment.BottomCenter).padding(start = Gutter, end = Gutter, bottom = 18.dp),
         )
     }
@@ -426,18 +422,19 @@ private fun AllResultsScreen(vm: ExploreViewModel, nav: AppNav, onFilters: () ->
                 }
             }
         }
-        SearchDock(label = query.ifBlank { "Where to?" }, sub = window.label, filters = vm.filterCount, onClick = onFilters,
+        SearchDock(label = query.ifBlank { "Where to?" }, sub = window.label, filters = vm.filterCount, onClick = onFilters, onMap = { nav.to(Routes.exploreMap(category)) },
             modifier = Modifier.align(Alignment.BottomCenter).padding(start = Gutter, end = Gutter, bottom = 18.dp))
     }
 }
 
 /** Bottom search: a 56dp pill floating above the tab bar ("Where to? · Any week" + filter button). */
 @Composable
-fun SearchDock(label: String, sub: String, filters: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun SearchDock(label: String, sub: String, filters: Int, onClick: () -> Unit, modifier: Modifier = Modifier, onMap: (() -> Unit)? = null) {
     val c = Pc.colors
     val shape = CircleShape
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
     Row(
-        modifier.fillMaxWidth().height(PcTokens.searchDock)
+        Modifier.weight(1f).height(PcTokens.searchDock)
             .shadow(10.dp, shape, clip = false, ambientColor = Color.Black.copy(alpha = 0.10f), spotColor = Color.Black.copy(alpha = 0.18f))
             .clip(shape).background(c.raised).border(1.dp, c.rule, shape)
             .clickable(role = Role.Button, onClickLabel = "Search and filters", onClick = onClick)
@@ -446,15 +443,27 @@ fun SearchDock(label: String, sub: String, filters: Int, onClick: () -> Unit, mo
     ) {
         PcIcon(PcIcons.Search, null, tint = c.ink, size = 20.dp)
         Spacer(Modifier.width(12.dp))
-        Text(label, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-        Text("  ·  $sub", style = Pc.type.body, color = c.ink2, maxLines = 1)
-        Spacer(Modifier.weight(1f))
+        // "Where to?" keeps its room; the dates give way when space is short.
+        Text(label, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 150.dp))
+        Text("  ·  $sub", style = Pc.type.body, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         Box(Modifier.size(38.dp).clip(CircleShape).background(c.tonal).semantics { contentDescription = "Filters" }, contentAlignment = Alignment.Center) {
             PcIcon(PcIcons.Sliders, null, tint = c.ink, size = 20.dp)
             if (filters > 0) Box(Modifier.align(Alignment.TopEnd).size(16.dp).clip(CircleShape).background(c.ink), contentAlignment = Alignment.Center) {
                 Text("$filters", style = Pc.type.label.copy(fontSize = 8.5.sp, fontWeight = FontWeight.ExtraBold), color = c.raised)
             }
         }
+    }
+    // Map: right next to search, where the thumb already is.
+    if (onMap != null) Row(
+        Modifier.height(PcTokens.searchDock)
+            .shadow(10.dp, shape, clip = false, ambientColor = Color.Black.copy(alpha = 0.10f), spotColor = Color.Black.copy(alpha = 0.22f))
+            .clip(shape).background(c.ink).clickable(role = Role.Button, onClickLabel = "Show on a map", onClick = onMap).padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        PcIcon(PcIcons.Pin, null, tint = c.onInk, size = 18.dp)
+        Spacer(Modifier.width(6.dp))
+        Text("Map", style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.onInk)
+    }
     }
 }
 

@@ -65,7 +65,10 @@ fun OsmMap(markers: List<MapMarker>, modifier: Modifier = Modifier, fitKey: Any?
         lifecycle.addObserver(obs); map.onResume()
         onDispose { lifecycle.removeObserver(obs); map.onPause(); map.onDetach() }
     }
-    var fitted by remember(fitKey) { mutableStateOf(false) }
+    // Re-fit when the category changes or a different set of places arrives (cached, then fresh),
+    // but not when only the selected pin changes.
+    val placesKey = remember(markers) { markers.map { it.id }.toSet() }
+    var fitted by remember(fitKey, placesKey) { mutableStateOf(false) }
     Box(modifier.clipToBounds()) {
         AndroidView({ map }, Modifier.fillMaxSize().clipToBounds()) { mv ->
             mv.overlays.removeAll { it is Marker }

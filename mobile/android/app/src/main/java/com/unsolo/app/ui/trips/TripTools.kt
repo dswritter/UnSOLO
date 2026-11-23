@@ -531,10 +531,15 @@ fun ExploreMapScreen(nav: AppNav, startCategory: String) {
     var category by rememberSaveable { mutableStateOf(startCategory) }
     var pins by remember { mutableStateOf<List<MapPin>?>(null) }
     var selected by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(category) {
-        selected = null
+    var failed by remember { mutableStateOf(false) }
+    var attempt by remember { mutableIntStateOf(0) }
+    LaunchedEffect(category, attempt) {
+        selected = null; failed = false
         g.trips.cachedPins(category)?.let { pins = it.pins }
-        (g.trips.mapPins(category) as? ApiResult.Ok)?.let { pins = it.value.pins }
+        when (val r = g.trips.mapPins(category)) {
+            is ApiResult.Ok -> pins = r.value.pins
+            else -> if (pins == null) failed = true
+        }
     }
     val colorFor = { k: String -> when (k) { "trip" -> c.pine; "stay" -> Color(0xFF3F51B5); "activity" -> Color(0xFF00897B); "rental" -> Color(0xFF6D4C41); else -> c.rose } }
     Column(Modifier.fillMaxSize().background(c.paper)) {
@@ -549,7 +554,12 @@ fun ExploreMapScreen(nav: AppNav, startCategory: String) {
             val list = pins.orEmpty()
             OsmMap(list.map { p -> MapMarker(p.kind + p.id, p.lat, p.lng, if (p.kind == "plan") Fmt.dayMonth(p.date).ifEmpty { "Plan" } else shortRupees(p.priceFromPaise), colorFor(p.kind), selected == p.kind + p.id) },
                 Modifier.fillMaxSize(), fitKey = category) { selected = it }
-            if (pins == null) Text("Loading the map…", style = Pc.type.small, color = c.ink2, modifier = Modifier.align(Alignment.TopCenter).padding(10.dp).clip(CircleShape).background(c.raised).padding(horizontal = 12.dp, vertical = 6.dp))
+            if (pins == null && failed) Row(Modifier.align(Alignment.TopCenter).padding(10.dp).clip(CircleShape).background(c.raised).clickable { attempt++ }.padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Text("Couldn't load the places. ", style = Pc.type.small, color = c.ink2)
+                Text("Try again", style = Pc.type.smallStrong, color = c.ink)
+            }
+            else if (pins == null) Text("Loading places…", style = Pc.type.small, color = c.ink2, modifier = Modifier.align(Alignment.TopCenter).padding(10.dp).clip(CircleShape).background(c.raised).padding(horizontal = 12.dp, vertical = 6.dp))
             else if (list.isEmpty()) Text("Nothing on the map here yet", style = Pc.type.small, color = c.ink2, modifier = Modifier.align(Alignment.TopCenter).padding(10.dp).clip(CircleShape).background(c.raised).padding(horizontal = 12.dp, vertical = 6.dp))
             list.firstOrNull { it.kind + it.id == selected }?.let { p ->
                 Row(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(12.dp).fillMaxWidth().raisedCard().clickable {

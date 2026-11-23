@@ -180,7 +180,7 @@ private fun NotificationRow(n: AppNotification, onOpen: () -> Unit, actions: @Co
 fun SignedOutState(nav: AppNav, title: String) {
     Column(Modifier.fillMaxSize().background(Pc.colors.paper)) {
         DetailTopBar(title, onBack = { nav.back() })
-        EmptyState("Sign in to see this", "Browsing is open to everyone. Messages, activity and your trips need an account.", action = "Sign in", onAction = { nav.to(Routes.AUTH) })
+        Box(Modifier.weight(1f)) { com.unsolo.app.ui.auth.SignInInvite(nav, "Sign in to see this", "Browsing is open to everyone. Messages, activity and your trips need an account.") }
     }
 }
 

@@ -89,10 +89,13 @@ fun YouScreen(nav: AppNav) {
     val c = Pc.colors
     val user = me?.user
     if (!signedIn || user == null) {
-        Column(Modifier.fillMaxSize().background(c.paper).verticalScroll(rememberScrollState())) {
+        Column(Modifier.fillMaxSize().background(c.paper)) {
             PageHeader("You", LocalHeaderCounts.current, { nav.to(Routes.AUTH) }, { nav.to(Routes.AUTH) })
-            EmptyState("Browse freely. Sign in to join.", "Posting, joining plans and chats need an account with a verified email or phone.", action = "Sign in or create account", onAction = { nav.to(Routes.AUTH) })
-            FormCard { NavRow("Settings", "Landing tab, data saver", PcIcons.Sliders, { nav.to(Routes.SETTINGS) }) }
+            Box(Modifier.weight(1f)) {
+                com.unsolo.app.ui.auth.SignInInvite(nav) {
+                    PcButton("Settings", { nav.to(Routes.SETTINGS) }, kind = BtnKind.Ghost, icon = PcIcons.Sliders)
+                }
+            }
         }
         return
     }

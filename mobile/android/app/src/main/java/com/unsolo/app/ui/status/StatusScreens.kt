@@ -135,8 +135,9 @@ fun MyStoryAvatar(nav: AppNav, user: UserLite, size: Dp) {
     val mine = rail.firstOrNull { it.user.id == user.id }?.takeIf { it.items.isNotEmpty() }
     val u = upload
     val label = when { u?.error != null -> "Retry your story"; u != null -> "Your story is going up"; mine != null -> "Play your stories"; else -> "Add to your story" }
-    Box(Modifier.clip(CircleShape).clickable(onClickLabel = label) { openMyStory(nav, user, mine) }) {
-        StoryRing(user, mine?.items?.size ?: 1, 0, size = size, mine = mine == null, plus = mine == null, progress = u?.progress, failed = u?.error != null)
+    // Same as "Your story" on Tribe: the + badge always shows, outside the ring (not clipped by it).
+    Box(Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClickLabel = label) { openMyStory(nav, user, mine) }.padding(2.dp)) {
+        StoryRing(user, mine?.items?.size ?: 1, 0, size = size, mine = mine == null, plus = true, progress = u?.progress, failed = u?.error != null)
     }
 }
 
@@ -349,12 +350,13 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
         // Instagram-style: actions stacked on the right, a full-width comment bar along the bottom.
         val mine = item.myReaction
         val total = item.reactions.values.sum()
-        fun react(k: String) {
+        // A tap always celebrates (and keeps your reaction); taking it back is in the hold-to-pick row.
+        fun react(k: String, toggleOff: Boolean = false) {
             if (!nav.requirePhone()) return
-            val adding = mine != k
             tick()
-            if (adding) bursts += EmojiBurst(System.nanoTime(), StatusReactions.toMap()[k] ?: "🏔️")
-            scope.launch { repo.react(item, k) }
+            if (mine == k && toggleOff) { scope.launch { repo.react(item, k) }; return }
+            bursts += EmojiBurst(System.nanoTime(), StatusReactions.toMap()[k] ?: "🏔️")
+            if (mine != k) scope.launch { repo.react(item, k) }
         }
         item.caption?.takeIf { item.type == "image" }?.let {
             Text(mentionText(it) { u -> nav.to(Routes.profile(u)) }, style = Pc.type.bodyStrong, color = Color.White,
@@ -382,7 +384,7 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
             horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             StatusReactions.forEach { (k, e) ->
                 Text(e, fontSize = 30.sp, modifier = Modifier.clip(CircleShape).background(if (mine == k) Color.White.copy(alpha = 0.25f) else Color.Transparent)
-                    .clickable(onClickLabel = reactionLabel(k)) { picker = false; react(k) }.padding(6.dp))
+                    .clickable(onClickLabel = if (mine == k) "Take back ${reactionLabel(k)}" else reactionLabel(k)) { picker = false; react(k, toggleOff = true) }.padding(6.dp))
             }
         }
         // Comment bar
@@ -599,6 +601,20 @@ fun StatusComposeScreen(nav: AppNav, archiveId: String?) {
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) { uris ->
         uris.forEach { if (photos.size < 10 && it !in photos) photos += it }
     }
+    // The camera button takes a photo; the gallery button picks from your photos.
+    var shot by remember { mutableStateOf<Uri?>(null) }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        val u = shot
+        if (ok && u != null && photos.size < 10) photos += u
+        shot = null
+    }
+    fun openCamera() {
+        val dir = File(context.cacheDir, "camera").apply { mkdirs() }
+        val f = File(dir, "story_${System.currentTimeMillis()}.jpg")
+        val u = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".files", f)
+        shot = u
+        runCatching { camera.launch(u) }.onFailure { shot = null; nav.graph.events.emit(AppEvent.Message("No camera app found.")) }
+    }
     var asked by remember { mutableStateOf(false) }
     LaunchedEffect(archiveId) {
         if (archiveId != null) {
@@ -664,7 +680,9 @@ fun StatusComposeScreen(nav: AppNav, archiveId: String?) {
                 BasicTextField(caption, { caption = it.take(500) }, textStyle = Pc.type.body.copy(color = Color.White), cursorBrush = SolidColor(Color.White), modifier = Modifier.fillMaxWidth())
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                IconTap(PcIcons.Camera, "Add photos", { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, tint = Color.White,
+                IconTap(PcIcons.Camera, "Take a photo", { openCamera() }, tint = Color.White,
+                    modifier = Modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.16f)))
+                IconTap(PcIcons.Image, "Add photos from your gallery", { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, tint = Color.White,
                     modifier = Modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.16f)))
                 AudienceChip("@ Tag people", false) { tagging = true }
                 val tagged = extractMentions(caption).size
