@@ -66,6 +66,36 @@ final class NetworkingTests: XCTestCase {
         XCTAssertFalse(signedIn)
     }
 
+    func testAuthTroubleKeepsTheSession() async throws {
+        final class Down: HTTPTransport, @unchecked Sendable {
+            let refreshStatus: Int?
+            init(_ s: Int?) { refreshStatus = s }
+            func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+                guard request.url!.path.hasSuffix("/token") else {
+                    return (Data(#"{"error":{"code":"unauthorized"}}"#.utf8), HTTPURLResponse(url: request.url!, statusCode: 401, httpVersion: nil, headerFields: nil)!)
+                }
+                guard let s = refreshStatus else { throw URLError(.timedOut) }
+                return (Data("<html>bad gateway</html>".utf8), HTTPURLResponse(url: request.url!, statusCode: s, httpVersion: nil, headerFields: nil)!)
+            }
+        }
+        for status in [500, 502, 503, 504, 429, nil] as [Int?] {
+            let t = Down(status)
+            let auth = AuthManager(transport: t, secrets: InMemorySecretStore(), supabaseURL: "https://x.supabase.co", anonKey: "k")
+            await auth.adopt(SupabaseSession(accessToken: "stale", refreshToken: "r", expiresIn: nil, expiresAt: nil, tokenType: nil))
+            let api = APIClient(transport: t, baseURL: URL(string: "https://unsolo.in/api/v1")!, auth: auth)
+            do { let _: OK = try await api.get("/me"); XCTFail("should throw") } catch {}
+            let signedIn = await auth.isSignedIn
+            XCTAssertTrue(signedIn, "refresh answered \(status.map(String.init) ?? "timeout"): keep the session")
+        }
+    }
+
+    func testUnavailableMapsToFriendlyMessage() {
+        let body = Data(#"{"error":{"code":"unavailable","message":null}}"#.utf8)
+        let e = APIError.from(status: 503, data: body, headers: [:])
+        XCTAssertEqual(e.errorDescription, "UnSOLO is having trouble right now. Try again in a minute.")
+        XCTAssertTrue(e.isRetryable)
+    }
+
     func testTokensPersistInSecretStoreNotDefaults() async throws {
         let store = InMemorySecretStore()
         let auth = AuthManager(transport: RefreshingServer(), secrets: store, supabaseURL: "https://x.supabase.co", anonKey: "k")

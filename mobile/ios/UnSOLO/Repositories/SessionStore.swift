@@ -53,9 +53,9 @@ final class SessionStore: AppBound {
         do {
             let me = try await app.api.me()
             setMe(me)
-        } catch APIError.unauthorized {
-            isSignedIn = false
-        } catch {}
+        } catch {
+            // Never signs out here: only a refresh token Auth rejects does (AuthManager.refreshedToken).
+        }
     }
 
     private func setMe(_ me: MeResponse) {

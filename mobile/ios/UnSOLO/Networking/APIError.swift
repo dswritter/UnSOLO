@@ -27,6 +27,7 @@ enum APIError: Error, Equatable, Sendable, LocalizedError {
         let env = try? JSONDecoder().decode(ErrorEnvelope.self, from: data)
         let message = env?.error.message
         switch (status, env?.error.code) {
+        case (_, "unavailable"): return .server(status, message ?? Self.unavailableMessage)
         case (401, _): return .unauthorized
         case (403, "phone_required"): return .phoneRequired
         case (403, _): return .forbidden(message)
@@ -40,6 +41,9 @@ enum APIError: Error, Equatable, Sendable, LocalizedError {
         default: return .server(status, message)
         }
     }
+
+    /// The server couldn't check your sign-in (Auth slow or down): a 503, not a 401.
+    static let unavailableMessage = "UnSOLO is having trouble right now. Try again in a minute."
 
     /// Network-level and transient server failures are retried by the outbox; client errors are not.
     var isRetryable: Bool {
