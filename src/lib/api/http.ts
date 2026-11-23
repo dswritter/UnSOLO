@@ -14,6 +14,7 @@ export type ApiErrorCode =
   | 'rate_limited'
   | 'upgrade_required'
   | 'server_error'
+  | 'unavailable'
 
 const STATUS: Record<ApiErrorCode, number> = {
   bad_request: 400,
@@ -25,6 +26,7 @@ const STATUS: Record<ApiErrorCode, number> = {
   rate_limited: 429,
   upgrade_required: 426,
   server_error: 500,
+  unavailable: 503,
 }
 
 export class ApiError extends Error {

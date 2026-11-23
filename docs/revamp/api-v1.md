@@ -21,6 +21,7 @@ This is the shared contract for the web, Android and iOS apps. The routes live i
   | `rate_limited` | 429, with a `Retry-After` header |
   | `upgrade_required` | 426 |
   | `server_error` | 500 |
+  | `unavailable` | 503 (a backing service is down; keep the session and retry) |
 
 - **Pagination:** every list returns `{ "items": [...], "nextCursor": "opaque" | null }`. To fetch the next page, pass `?cursor=`.
 - **Idempotency:** creates take a `clientId` (a UUID generated on the device). If the same `clientId` is sent again, the server returns the original object with status 200. This is what makes offline queues safe to retry.

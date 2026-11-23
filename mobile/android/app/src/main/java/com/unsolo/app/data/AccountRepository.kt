@@ -112,7 +112,8 @@ class AccountRepository(
             settings.setLandingTab(r.value.preferences.landingTab)
             settings.setDataSaver(r.value.preferences.dataSaver)
         }
-        if (r is ApiResult.Err && r.status == 401) { session.clear(); db.cache().delete(KEY_ME) }
+        // A 401 here already went through the token refresh, which signs out by itself when the
+        // session is truly gone. Don't sign out here: an Auth outage also looked like a 401.
         return r
     }
 

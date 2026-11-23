@@ -60,8 +60,15 @@ class TokenAuthenticator(
                 // Another request already refreshed.
                 return response.request.newBuilder().header("Authorization", "Bearer ${current.accessToken}").build()
             }
-            val refreshed = runCatching { auth().refreshBlocking(current.refreshToken) }.getOrNull()
-            if (refreshed == null) { session.clear(); return null }
+            val result = runCatching { auth().refreshBlocking(current.refreshToken) }
+            val refreshed = result.getOrNull()
+            if (refreshed == null) {
+                // Sign out only when Auth says the refresh token is no good (400/401/403). A timeout or
+                // an outage keeps you signed in; the next request tries again.
+                val e = result.exceptionOrNull()
+                if (e is ApiException && e.status in setOf(400, 401, 403)) session.clear()
+                return null
+            }
             session.update(refreshed)
             return response.request.newBuilder().header("Authorization", "Bearer ${refreshed.accessToken}").build()
         }
@@ -169,6 +176,7 @@ fun ApiResult.Err.userMessage(): String = when (code) {
     "unauthorized" -> "Sign in to continue."
     "rate_limited" -> "You're doing that a lot. Try again in a bit."
     "upgrade_required" -> "Update UnSOLO from the Play Store to keep going."
+    "unavailable" -> "UnSOLO is having trouble right now. Try again in a minute."
     "forbidden" -> message ?: "You can't do that."
     "not_found" -> "This isn't available any more."
     else -> message ?: "Something went wrong. Try again."

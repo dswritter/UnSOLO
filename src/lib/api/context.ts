@@ -44,6 +44,9 @@ export async function getApiContext(req: Request): Promise<ApiContext> {
       global: { headers: { Authorization: `Bearer ${bearer}` } },
     })
     const { data, error } = await db.auth.getUser(bearer)
+    // Only a definite "this token is no good" signs the app out. Supabase Auth being slow or down
+    // (timeouts, 5xx) is a 503, so apps keep you signed in and simply try again.
+    if (error && !isTokenRejected(error)) throw new ApiError('unavailable', 'UnSOLO is having trouble right now. Try again in a minute.')
     if (error || !data.user) throw new ApiError('unauthorized', 'Session expired')
     return { db, user: data.user, client, service }
   }
@@ -51,6 +54,11 @@ export async function getApiContext(req: Request): Promise<ApiContext> {
   const db = await createCookieClient()
   const { data } = await db.auth.getUser()
   return { db, user: data.user ?? null, client, service }
+}
+
+function isTokenRejected(e: { status?: number; name?: string }): boolean {
+  const s = e.status ?? 0
+  return e.name !== 'AuthRetryableFetchError' && s >= 400 && s < 500 && s !== 429
 }
 
 export function requireUser(ctx: ApiContext): User {
