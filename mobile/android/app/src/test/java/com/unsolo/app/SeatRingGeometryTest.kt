@@ -61,8 +61,9 @@ class SeatRingGeometryTest {
 
     @Test fun captionsAndLabels() {
         assertEquals("Be first in the circle · 12 spots open", ringCaption(12, 0).text)
-        assertEquals("8 of 12 open · 4 going", ringCaption(12, 4).text)
-        assertEquals("Full · 12/12", ringCaption(12, 12).text)
+        assertEquals("4 going", ringCaption(12, 4).text)
+        assertEquals("4/12 spots left · 8 going", ringCaption(12, 8).text)
+        assertEquals("Full", ringCaption(12, 12).text)
         assertEquals("8 of 12 spots open", ringA11y(12, 4))
         assertEquals("Full, 12 of 12 spots taken", ringA11y(12, 12))
         assertEquals("spots left", spotsWord(8, false)); assertEquals("spot left", spotsWord(1, false)); assertEquals("full", spotsWord(0, true))
