@@ -356,7 +356,18 @@ struct Booking: Codable, Hashable, Sendable, Identifiable {
 }
 
 enum NotificationCategory: String, Codable, Sendable, CaseIterable {
-    case plans, replies, messages, trips, tags, system
+    case plans, replies, messages, trips, tags, marketing, system
+
+    /// A category this build doesn't know yet reads as `.system`, so one new kind never fails the whole Activity list.
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = NotificationCategory(rawValue: raw) ?? .system
+    }
+
+    /// Activity filter: Replies also shows messages (as on the web).
+    func matches(_ filter: NotificationCategory) -> Bool {
+        self == filter || (filter == .replies && self == .messages)
+    }
 }
 
 struct AppNotification: Codable, Hashable, Sendable, Identifiable {

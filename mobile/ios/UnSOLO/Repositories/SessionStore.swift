@@ -69,6 +69,11 @@ final class SessionStore: AppBound {
         if app?.outbox.item("prefs") == nil { applyPreferences(me.preferences, fromServer: true) }
     }
 
+    /// Fresh preferences from GET /me/preferences (kept only when nothing local is waiting to sync).
+    func adoptServerPreferences(_ p: Preferences) {
+        if app?.outbox.item("prefs") == nil { applyPreferences(p, fromServer: true) }
+    }
+
     private func applyPreferences(_ p: Preferences, fromServer: Bool) {
         preferences = p
         app?.store.setEntry("prefs", p, isPrivate: true)

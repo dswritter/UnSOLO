@@ -276,4 +276,32 @@ final class ParityTests: XCTestCase {
         XCTAssertEqual(out.size.width / out.size.height, 9.0 / 16.0, accuracy: 0.01)
         XCTAssertLessThanOrEqual(max(out.size.width, out.size.height), 2160)
     }
+
+    // MARK: Offers (marketing) notifications
+
+    func testNotificationCategoriesDecodeMarketingAndUnknown() throws {
+        func row(_ cat: String) -> String {
+            #"{"id":"n-\#(cat)","type":"promotion","category":"\#(cat)","title":"Deal","body":null,"link":"/offers","isRead":false,"createdAt":"2026-11-23T10:00:00Z"}"#
+        }
+        let json = "[\(row("marketing")),\(row("brand_new_kind")),\(row("tags"))]"
+        let list = try JSON.decoder().decode([AppNotification].self, from: Data(json.utf8))
+        XCTAssertEqual(list.map(\.category), [.marketing, .system, .tags])
+    }
+
+    func testActivityFilterMatching() {
+        XCTAssertTrue(NotificationCategory.marketing.matches(.marketing))
+        XCTAssertFalse(NotificationCategory.marketing.matches(.system))
+        XCTAssertTrue(NotificationCategory.messages.matches(.replies))
+        XCTAssertFalse(NotificationCategory.replies.matches(.messages))
+    }
+
+    func testOffersAskIsOneTime() {
+        let d = UserDefaults.standard
+        let before = d.object(forKey: OffersAsk.key)
+        defer { d.set(before, forKey: OffersAsk.key) }
+        d.removeObject(forKey: OffersAsk.key)
+        XCTAssertFalse(OffersAsk.asked)
+        OffersAsk.answer(false)
+        XCTAssertTrue(OffersAsk.asked)
+    }
 }
