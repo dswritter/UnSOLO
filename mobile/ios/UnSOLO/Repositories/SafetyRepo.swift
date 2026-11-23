@@ -135,7 +135,7 @@ final class SafetyRepo: AppBound {
         await refreshLive(s.roomId)
     }
 
-    private func endLocally() {
+    func endLocally() {
         sharing = nil
         shareTimer?.cancel()
         PreciseLocation.shared.stopUpdates()

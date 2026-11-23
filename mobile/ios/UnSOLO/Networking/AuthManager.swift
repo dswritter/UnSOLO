@@ -87,7 +87,9 @@ actor AuthManager {
     /// Returns a fresh access token. If another caller already refreshed past `staleToken`, returns that.
     func refreshedToken(after staleToken: String?) async throws -> String {
         if let current = session?.accessToken, current != staleToken { return current }
-        if let task = refreshTask { return try await task.value.accessToken }
+        if let task = refreshTask {
+            do { return try await task.value.accessToken } catch RefreshRejected.status { throw APIError.unauthorized }
+        }
         guard let refreshToken = session?.refreshToken else { throw APIError.unauthorized }
         let task = Task { try await self.performRefresh(refreshToken) }
         refreshTask = task
@@ -96,16 +98,31 @@ actor AuthManager {
             refreshTask = nil
             store(s)
             return s.accessToken
-        } catch {
+        } catch RefreshRejected.status {
+            // Auth said this refresh token is no good: that's the only thing that signs you out.
             refreshTask = nil
-            if let api = error as? APIError, !api.isRetryable { clear() }
+            clear()
+            throw APIError.unauthorized
+        } catch {
+            // Slow, down, 5xx, offline or an odd reply: keep the session; the next request tries again.
+            refreshTask = nil
             throw error
         }
     }
 
+    private enum RefreshRejected: Error { case status(Int) }
+
+    /// Statuses from the refresh_token grant that mean the session is really over.
+    static let rejectingStatuses: Set<Int> = [400, 401, 403]
+
     private func performRefresh(_ refreshToken: String) async throws -> SupabaseSession {
         refreshCalls += 1
-        return try await post("/token?grant_type=refresh_token", body: ["refresh_token": refreshToken])
+        var req = request("/token?grant_type=refresh_token")
+        req.httpBody = try JSONSerialization.data(withJSONObject: ["refresh_token": refreshToken])
+        let (data, http) = try await transport.send(req)
+        if Self.rejectingStatuses.contains(http.statusCode) { throw RefreshRejected.status(http.statusCode) }
+        guard (200..<300).contains(http.statusCode) else { throw Self.authError(http.statusCode, data) }
+        do { return try JSONDecoder().decode(SupabaseSession.self, from: data) } catch { throw APIError.decoding("\(error)") }
     }
 
     // MARK: Plumbing
