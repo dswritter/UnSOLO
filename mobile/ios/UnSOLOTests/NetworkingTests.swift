@@ -89,6 +89,20 @@ final class NetworkingTests: XCTestCase {
         }
     }
 
+    @MainActor
+    func testAnySignOutWipesTheAccountFromThePhone() async throws {
+        let app = AppModel(inMemory: true)
+        app.store.setEntry("mytrips", ["private": "yes"], isPrivate: true)
+        app.store.setEntry("public", "kept")
+        app.session.isSignedIn = true
+        app.session.authChanged(false) // e.g. Auth rejected the refresh token
+        for _ in 0..<50 where app.store.entry([String: String].self, "mytrips") != nil { try await Task.sleep(for: .milliseconds(20)) }
+        XCTAssertNil(app.store.entry([String: String].self, "mytrips"))
+        XCTAssertEqual(app.store.entry(String.self, "public"), "kept")
+        XCTAssertFalse(app.session.isSignedIn)
+        XCTAssertNil(app.session.me)
+    }
+
     func testUnavailableMapsToFriendlyMessage() {
         let body = Data(#"{"error":{"code":"unavailable","message":null}}"#.utf8)
         let e = APIError.from(status: 503, data: body, headers: [:])

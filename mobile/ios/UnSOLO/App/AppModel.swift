@@ -117,6 +117,8 @@ final class AppModel {
         #endif
 
         session.isSignedIn = await auth.isSignedIn
+        // A profile cached with no session left (signed out while the app was away): don't show it.
+        if !session.isSignedIn, session.me != nil { await session.wipeLocal() }
         await analytics.track("app.open", props: ["coldStart": coldStart ? "true" : "false", "landingTab": landing.landingTab.rawValue])
         await analytics.foregrounded()
 

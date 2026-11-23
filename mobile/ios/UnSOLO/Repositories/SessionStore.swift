@@ -40,12 +40,14 @@ final class SessionStore: AppBound {
     }
 
     func authChanged(_ signedIn: Bool) {
-        isSignedIn = signedIn
-        if !signedIn {
-            me = nil
-            unreadMessages = 0
-            unreadNotifications = 0
+        // Any sign-out, not only the button (e.g. Auth rejected the refresh token): nothing of the account stays.
+        if !signedIn, isSignedIn || me != nil {
+            Task {
+                await wipeLocal()
+                await app?.tribe.refreshFeed(key: "all")
+            }
         }
+        isSignedIn = signedIn
     }
 
     func refreshMe() async {
@@ -227,20 +229,33 @@ final class SessionStore: AppBound {
             try? await app.api.unregisterDevice(token: token)
         }
         await app.safety.stopSharing()
+        await wipeLocal()
         await app.auth.signOut()
+        await app.tribe.refreshFeed(key: "all")
+    }
+
+    /// Clears everything this account left on the phone: cached profile (name, photo), trips, requests and
+    /// offers, notifications, chats, the outbox, account settings, stories and the widget.
+    func wipeLocal() async {
+        guard let app else { return }
         app.store.wipePrivate()
         app.transportCacheReset()
         await ImagePipeline.shared.clearAll()
         me = nil
         isSignedIn = false
+        unreadMessages = 0
+        unreadNotifications = 0
         app.trips.myTrips = .empty
         app.activity.items = []
+        app.chat.close()
         app.chat.chats = []
+        app.chat.lines = [:]
         app.statuses.clear()
         WidgetBridge.clear()
+        app.safety.endLocally()
         app.safety.sos = nil
         app.safety.buddies = nil
-        await app.tribe.refreshFeed(key: "all")
+        app.pendingOutbox = app.outbox.pendingCount
     }
 }
 
