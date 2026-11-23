@@ -27,17 +27,40 @@ struct ExploreFilter: Equatable {
         }
     }
 
+    /// Price per person (or per unit) at most.
+    enum Price: CaseIterable, Hashable {
+        case any, under10, under20, under30
+        var label: String {
+            switch self {
+            case .any: "Any price"
+            case .under10: "Under ₹10k"
+            case .under20: "Under ₹20k"
+            case .under30: "Under ₹30k"
+            }
+        }
+        var maxPaise: Int? {
+            switch self {
+            case .any: nil
+            case .under10: 1_000_000
+            case .under20: 2_000_000
+            case .under30: 3_000_000
+            }
+        }
+    }
+
     var query = ""
     var when: When = .any
     var length: Length = .any
+    var price: Price = .any
     var openOnly = false
 
-    var activeCount: Int { (when == .any ? 0 : 1) + (length == .any ? 0 : 1) + (openOnly ? 1 : 0) }
+    var activeCount: Int { (when == .any ? 0 : 1) + (length == .any ? 0 : 1) + (price == .any ? 0 : 1) + (openOnly ? 1 : 0) }
     var isEmpty: Bool { query.isEmpty && activeCount == 0 }
 
     func matches(_ t: TripLite, now: Date = Date()) -> Bool {
         if openOnly && (t.seatsLeft ?? 0) == 0 { return false }
         if !length.matches(t.durationDays) { return false }
+        if let cap = price.maxPaise, t.priceFromPaise > cap { return false }
         switch when {
         case .any: break
         case .weekend:
@@ -143,7 +166,7 @@ struct ExploreView: View {
         .pcScreen()
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showSearch) {
-            ExploreSearchSheet(filter: $filter, category: category)
+            ExploreSearchSheet(filter: $filter, category: $category)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
                 .pcSheet()
@@ -174,7 +197,7 @@ struct ExploreView: View {
         HStack(spacing: 8) {
             Image(systemName: "line.3.horizontal.decrease").font(.system(size: 12, weight: .bold)).foregroundStyle(Pc.ink)
             Text([filter.query.isEmpty ? nil : "“\(filter.query)”", filter.when == .any ? nil : filter.whenLabel,
-                  filter.length == .any ? nil : filter.length.label, filter.openOnly ? "Open spots" : nil]
+                  filter.length == .any ? nil : filter.length.label, filter.price == .any ? nil : filter.price.label, filter.openOnly ? "Open spots" : nil]
                 .compactMap { $0 }.joined(separator: " · "))
                 .pcFont(.small, weight: .semibold).foregroundStyle(Pc.ink).lineLimit(1)
             Spacer()
@@ -556,20 +579,19 @@ struct SuggestionsRail: View {
 
 // MARK: - Search sheet
 
-/// Search and filters as a bottom sheet: query, when, trip length, open seats; live results; "Show N" at the bottom.
+/// Find your trip: What / When / Trip length / Price as one-line rows that open one at a time (picking a choice
+/// closes it), the open-spots switch, the search box, then Clear and a big "Show N results" by your thumb.
 struct ExploreSearchSheet: View {
     @Binding var filter: ExploreFilter
-    let category: ExploreCategory
+    @Binding var category: ExploreCategory
     @Environment(AppModel.self) private var app
-    @Environment(Router.self) private var router
     @Environment(\.dismiss) private var dismiss
     @State private var draft = ExploreFilter()
+    @State private var open: String?
     @FocusState private var focused: Bool
 
     private var pool: [TripLite] { draft.query.isEmpty ? (app.explore.lists[category] ?? []) : app.explore.searchResults }
-    private var results: [TripLite] {
-        pool.filter { draft.matches($0) }.sorted { ($0.nextDeparture ?? "9") < ($1.nextDeparture ?? "9") }
-    }
+    private var results: [TripLite] { pool.filter { draft.matches($0) } }
     private var months: [String] {
         let all = (app.explore.lists[category] ?? []).compactMap { $0.nextDeparture.map { String($0.prefix(7)) } }
         return Array(Set(all)).sorted().prefix(6).map { $0 }
@@ -577,8 +599,31 @@ struct ExploreSearchSheet: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                SheetHeader(title: "Find a trip").padding(.top, 22)
+            VStack(alignment: .leading, spacing: 8) {
+                SheetHeader(title: "Find your trip").padding(.top, 22).padding(.bottom, 6)
+                row("What", category.label) {
+                    ForEach(ExploreCategory.allCases, id: \.self) { c in
+                        PcChip(text: c.label, selected: category == c, icon: ExploreView.categoryIcons[c], showsCheck: false) { category = c; open = nil }
+                    }
+                }
+                row("When", draft.whenLabel) {
+                    chip("Any week", draft.when == .any) { draft.when = .any }
+                    chip("This weekend", draft.when == .weekend) { draft.when = .weekend }
+                    chip("Next 30 days", draft.when == .next30) { draft.when = .next30 }
+                    ForEach(months, id: \.self) { m in
+                        chip(ExploreFilter.monthLabel(m), draft.when == .month(m)) { draft.when = .month(m) }
+                    }
+                }
+                row("Length", draft.length.label) {
+                    ForEach(ExploreFilter.Length.allCases, id: \.self) { l in chip(l.label, draft.length == l) { draft.length = l } }
+                }
+                row("Price", draft.price.label) {
+                    ForEach(ExploreFilter.Price.allCases, id: \.self) { p in chip(p.label, draft.price == p) { draft.price = p } }
+                }
+                PcToggleRow(title: "Only open spots", subtitle: "Hide full departures", isOn: $draft.openOnly)
+                    .padding(.horizontal, 14).padding(.vertical, 4)
+                    .pcField()
+                    .padding(.top, 4)
                 HStack(spacing: 10) {
                     Image(systemName: "magnifyingglass").font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink)
                     TextField("Where to? Spiti, Kasol, Bhutan…", text: $draft.query)
@@ -594,59 +639,24 @@ struct ExploreSearchSheet: View {
                 .padding(.horizontal, 14)
                 .frame(minHeight: 46)
                 .pcField(focused: focused)
-                if draft.query.isEmpty {
-                    FlowLayout(spacing: 8, lineSpacing: 0) {
-                        ForEach(["Spiti", "Kasol", "Rishikesh", "Bhutan", "Tungnath"], id: \.self) { s in
-                            PcChip(text: s, icon: "mappin") { draft.query = s }
-                        }
-                    }
-                }
-                group("When") {
-                    FlowLayout(spacing: 8, lineSpacing: 0) {
-                        chip("Any week", draft.when == .any) { draft.when = .any }
-                        chip("This weekend", draft.when == .weekend) { draft.when = .weekend }
-                        chip("Next 30 days", draft.when == .next30) { draft.when = .next30 }
-                        ForEach(months, id: \.self) { m in
-                            chip(ExploreFilter.monthLabel(m), draft.when == .month(m)) { draft.when = .month(m) }
-                        }
-                    }
-                }
-                group("Trip length") {
-                    FlowLayout(spacing: 8, lineSpacing: 0) {
-                        ForEach(ExploreFilter.Length.allCases, id: \.self) { l in
-                            chip(l.label, draft.length == l) { draft.length = l }
-                        }
-                    }
-                }
-                PcToggleRow(title: "Only trips with open spots", subtitle: "Hide full departures", isOn: $draft.openOnly)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 4)
-                    .pcField()
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(results.isEmpty ? "No departures match" : "\(results.count) departure\(results.count == 1 ? "" : "s")")
-                        .pcFont(.small, weight: .bold).foregroundStyle(Pc.ink2).padding(.bottom, 4)
-                    ForEach(Array(results.prefix(8).enumerated()), id: \.element.id) { i, t in
-                        TripListRow(trip: t, category: draft.query.isEmpty ? category : .trips, showsDivider: i < min(results.count, 8) - 1) {
-                            filter = draft
-                            dismiss()
-                            router.push(.trip(slug: t.slug))
-                        }
-                    }
-                }
+                .padding(.top, 6)
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 20)
+            .animation(.snappy(duration: 0.22), value: open)
         }
         .scrollDismissesKeyboard(.interactively)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             HStack(spacing: 12) {
-                Button("Clear all") { draft = ExploreFilter() }.buttonStyle(.pcLink).disabled(draft.isEmpty)
-                Spacer()
-                Button("Show \(results.count) trip\(results.count == 1 ? "" : "s")") {
+                Button("Clear") { draft = ExploreFilter(); open = nil }.buttonStyle(.pcLink).disabled(draft.isEmpty)
+                Button {
                     filter = draft
                     dismiss()
+                } label: {
+                    Text(results.count == 1 ? "Show 1 result" : "Show \(results.count) results").font(.system(size: 16, weight: .bold))
+                        .frame(maxWidth: .infinity, minHeight: 52)
                 }
-                .buttonStyle(.pcAccent)
+                .buttonStyle(.pc(.accent, fullWidth: true))
             }
             .padding(.horizontal, 20)
             .padding(.top, 10)
@@ -660,13 +670,36 @@ struct ExploreSearchSheet: View {
                 if q == draft.query { await app.explore.search(q) }
             }
         }
+        .onChange(of: draft.when) { _, _ in open = nil }
+        .onChange(of: draft.length) { _, _ in open = nil }
+        .onChange(of: draft.price) { _, _ in open = nil }
     }
 
-    private func group<C: View>(_ title: String, @ViewBuilder content: () -> C) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.system(size: 11, weight: .bold)).foregroundStyle(Pc.ink2)
-            content()
+    /// One filter as a line ("When · Any week"); tap to show its choices underneath.
+    private func row<C: View>(_ title: String, _ value: String, @ViewBuilder choices: () -> C) -> some View {
+        let expanded = open == title
+        return VStack(alignment: .leading, spacing: 0) {
+            Button { open = expanded ? nil : title } label: {
+                HStack(spacing: 8) {
+                    Text(title).pcFont(.small).foregroundStyle(Pc.ink2).frame(width: 64, alignment: .leading)
+                    Text(value).pcFont(.bodyStrong, weight: .bold).foregroundStyle(Pc.ink).lineLimit(1)
+                    Spacer(minLength: 4)
+                    Image(systemName: expanded ? "chevron.up" : "chevron.down").font(.system(size: 13, weight: .semibold)).foregroundStyle(Pc.ink2)
+                }
+                .padding(.horizontal, 16).padding(.vertical, 14)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(title), \(value)")
+            .accessibilityHint(expanded ? "Hides the choices" : "Shows the choices")
+            if expanded {
+                FlowLayout(spacing: 8, lineSpacing: 8) { choices() }
+                    .padding(.horizontal, 12).padding(.bottom, 12)
+                    .transition(.opacity)
+            }
         }
+        .background(RoundedRectangle(cornerRadius: 18).fill(expanded ? Pc.raised : Pc.tonal))
+        .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(expanded ? Pc.ink : .clear, lineWidth: 1))
     }
 
     private func chip(_ text: String, _ on: Bool, _ action: @escaping () -> Void) -> some View {

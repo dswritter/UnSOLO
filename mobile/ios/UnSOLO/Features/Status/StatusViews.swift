@@ -410,6 +410,8 @@ private struct StatusPlayer: View {
             next()
         }
         .onChange(of: active, initial: true) { _, on in markSeen(on); if !on { typing = false } }
+        // The keyboard went away (swiped down, dismissed): let go of the reply box so the story plays on; the draft stays.
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in if typing { typing = false } }
         .onChange(of: replyAsk) { _, n in if n > 0 && active { typing = true } }
         .onChange(of: item?.id) { _, _ in markSeen(active); draft = "" }
         .sheet(isPresented: $commentsOpen) {
@@ -445,16 +447,18 @@ private struct StatusPlayer: View {
         if index > 0 { idx = index - 1 } else { onBack() }
     }
 
-    /// A tap always plays the floating emojis and keeps your reaction (even if it's already that one).
-    /// `fromPicker`: tapping your current one in the hold-to-pick row takes it back.
-    private func react(_ kind: String, fromPicker: Bool = false) {
+    /// Tap reacts (the emojis float up); tapping your current reaction again takes it back (no animation).
+    /// Same for the comment-bar mountain and the hold-to-pick row.
+    private func react(_ kind: String) {
         guard let item else { return }
         app.requireVerified("Sign in to react") {
-            let takingBack = fromPicker && item.myReaction == kind
-            Haptics.strong()
-            if !takingBack { bursts.append(EmojiBurst(emoji: StoryReaction.emoji(kind) ?? "🏔️")) }
+            let takingBack = item.myReaction == kind
+            if takingBack { Haptics.tick() } else {
+                Haptics.strong()
+                bursts.append(EmojiBurst(emoji: StoryReaction.emoji(kind) ?? "🏔️"))
+            }
             Task {
-                if takingBack || item.myReaction != kind { await app.statuses.react(item, kind: kind) }
+                await app.statuses.react(item, kind: kind)
                 try? await Task.sleep(for: .seconds(FloatingEmojis.duration))
                 bursts.removeAll { Date().timeIntervalSince($0.start) > FloatingEmojis.duration }
             }
@@ -575,7 +579,7 @@ private struct StatusPlayer: View {
                 if picker {
                     HStack(spacing: 4) {
                         ForEach(StoryReaction.all, id: \.key) { r in
-                            Button { picker = false; react(r.key, fromPicker: true) } label: {
+                            Button { picker = false; react(r.key) } label: {
                                 Text(r.emoji).font(.system(size: 30)).padding(6)
                                     .background(Circle().fill(item.myReaction == r.key ? .white.opacity(0.25) : .clear))
                             }
@@ -597,7 +601,7 @@ private struct StatusPlayer: View {
         let mine = item.myReaction
         let total = item.totalReactions
         return VStack(spacing: 6) {
-            // Tap: "Take me there" (or your reaction again). Hold: pick another, or tap yours there to take it back.
+            // Tap: "Take me there", tap again to take it back. Hold: pick another.
             VStack(spacing: 2) {
                 Text(StoryReaction.emoji(mine) ?? "🏔️").font(.system(size: 26)).opacity(mine == nil ? 0.85 : 1)
                     .scaleEffect(mine != nil ? 1.15 : 1)
@@ -958,7 +962,7 @@ struct PersonRow: View {
 // MARK: - Composer
 
 /// Share a story: up to 10 photos (from the library or your archive), an optional caption, who can see it.
-/// Opens the photo picker straight away; text-only works too. Share closes at once and the story goes up
+/// Opens on a choice: type a story, or Camera / Gallery tiles. Share closes at once and the story goes up
 /// in the background (the ring on "Your story" shows how far).
 /// A photo in the composer: the original bytes, the upright preview it's edited on, and how it's framed.
 private struct ComposerShot: Identifiable, Sendable {
@@ -1006,12 +1010,21 @@ struct StatusComposer: View {
         ZStack {
             Color.black.ignoresSafeArea()
             if shots.isEmpty {
-                TextField("", text: $caption, prompt: Text("Type a story, or add photos").foregroundStyle(.white.opacity(0.5)), axis: .vertical)
-                    .font(.system(size: 24, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.white)
-                    .multilineTextAlignment(.center)
-                    .focused($typing)
-                    .padding(28)
+                VStack(spacing: 22) {
+                    TextField("", text: $caption, prompt: Text("Type a story").foregroundStyle(.white.opacity(0.5)), axis: .vertical)
+                        .font(.system(size: 24, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
+                        .focused($typing)
+                    if !typing && caption.isEmpty {
+                        Text("or add a photo").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white.opacity(0.6))
+                        HStack(spacing: 14) {
+                            sourceTile("camera", "Camera", openCamera).accessibilityLabel("Take a photo")
+                            sourceTile("photo.on.rectangle", "Gallery") { pickerOpen = true }.accessibilityLabel("Pick photos")
+                        }
+                    }
+                }
+                .padding(28)
             } else {
                 pager
             }
@@ -1074,7 +1087,7 @@ struct StatusComposer: View {
         }
         .onChange(of: caption) { _, v in if v.count > 500 { caption = String(v.prefix(500)) } }
         .task {
-            if let archiveId { loadArchived(archiveId) } else { pickerOpen = true }
+            if let archiveId { loadArchived(archiveId) }
         }
     }
 
@@ -1083,6 +1096,25 @@ struct StatusComposer: View {
         guard let a = app.statuses.archive.first(where: { $0.id == id }), let d = try? Data(contentsOf: app.statuses.url(of: a)) else { return }
         if shots.count < 10, let shot = ComposerShot(d) { add(shot) }
         if caption.isEmpty { caption = a.caption ?? "" }
+    }
+
+    private func openCamera() {
+        if UIImagePickerController.isSourceTypeAvailable(.camera) { cameraOpen = true }
+        else { app.showToast("No camera on this device. Pick photos instead.") }
+    }
+
+    private func sourceTile(_ symbol: String, _ label: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 10) {
+                Image(systemName: symbol).font(.system(size: 28, weight: .semibold))
+                Text(label).font(.system(size: 15, weight: .bold))
+            }
+            .foregroundStyle(.white)
+            .frame(width: 130, height: 120)
+            .background(RoundedRectangle(cornerRadius: 20).fill(.white.opacity(0.12)))
+            .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(.white.opacity(0.25), lineWidth: 1))
+        }
+        .buttonStyle(.pcPress)
     }
 
     private func add(_ shot: ComposerShot) {
@@ -1183,10 +1215,7 @@ struct StatusComposer: View {
                     .background(RoundedRectangle(cornerRadius: 22).fill(Color(white: 0.07).opacity(0.6)))
             }
             HStack(spacing: 8) {
-                Button {
-                    if UIImagePickerController.isSourceTypeAvailable(.camera) { cameraOpen = true }
-                    else { app.showToast("No camera on this device. Pick photos instead.") }
-                } label: {
+                Button(action: openCamera) {
                     Image(systemName: "camera").font(.system(size: 16, weight: .bold)).foregroundStyle(.white)
                         .frame(width: 44, height: 44).background(Circle().fill(.white.opacity(0.16)))
                 }

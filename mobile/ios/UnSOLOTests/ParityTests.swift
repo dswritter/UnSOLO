@@ -199,6 +199,29 @@ final class ParityTests: XCTestCase {
         XCTAssertEqual(out.size, CGSize(width: 160, height: 200), "the photo's own resolution")
     }
 
+    func testMapPastPinsAndOneSpotFit() throws {
+        let json = #"{"pins":[{"kind":"trip","id":"a","slug":"x","title":"Old trip","place":"Manali","lat":32.24,"lng":77.19,"priceFromPaise":1469900,"date":null,"seatsLeft":null,"past":true},{"kind":"stay","id":"b","title":"Tent","lat":32.245,"lng":77.195}]}"#
+        let pins = try JSON.decoder().decode(MapPinsResponse.self, from: Data(json.utf8)).pins
+        XCTAssertTrue(pins[0].isPast)
+        XCTAssertFalse(pins[1].isPast)
+        let r = ExploreMapView.fitRegion(pins)
+        XCTAssertEqual(r.span.latitudeDelta, 0.15, accuracy: 1e-9, "pins in one spot: a city zoom, not a zero-size region")
+        XCTAssertEqual(r.center.latitude, 32.2425, accuracy: 1e-6)
+        let wide = ExploreMapView.fitRegion(pins + [MapPin(kind: "trip", id: "c", title: "Goa", lat: 15.3, lng: 74.1)])
+        XCTAssertGreaterThan(wide.span.latitudeDelta, 16)
+    }
+
+    func testPriceFilter() throws {
+        var f = ExploreFilter()
+        f.price = .under10
+        let json = #"{"id":"t1","slug":"s","title":"T","priceFromPaise":1469900,"durationDays":3}"#
+        let t = try JSON.decoder().decode(TripLite.self, from: Data(json.utf8))
+        XCTAssertFalse(f.matches(t))
+        f.price = .under20
+        XCTAssertTrue(f.matches(t))
+        XCTAssertEqual(f.activeCount, 1)
+    }
+
     func testStoryRenderIs916() throws {
         let img = UIGraphicsImageRenderer(size: CGSize(width: 400, height: 300)).image { c in
             UIColor.red.setFill(); c.fill(CGRect(x: 0, y: 0, width: 400, height: 300))

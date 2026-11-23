@@ -73,6 +73,9 @@ struct MapPin: Codable, Hashable, Sendable, Identifiable {
     var seatsLeft: Int?
     var spotsLeft: Int?
     var image: Media?
+    /// A trip whose dates have all passed (date and seatsLeft are null): grey pin, "Ask for dates".
+    var past: Bool?
+    var isPast: Bool { past == true }
 }
 struct MapPinsResponse: Codable, Sendable { @DefaultEmpty var pins: [MapPin] }
 

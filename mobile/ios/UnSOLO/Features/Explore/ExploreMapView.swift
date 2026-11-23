@@ -64,13 +64,21 @@ struct ExploreMapView: View {
         .onChange(of: pins.map(\.id)) { _, _ in fit() }
     }
 
+    /// All the pins in view; pins in (nearly) one spot get a city-level zoom around them.
+    static func fitRegion(_ pins: [MapPin]) -> MKCoordinateRegion {
+        let lats = pins.map(\.lat), lngs = pins.map(\.lng)
+        let minLat = lats.min() ?? 23.5, maxLat = lats.max() ?? 23.5, minLng = lngs.min() ?? 79, maxLng = lngs.max() ?? 79
+        let center = CLLocationCoordinate2D(latitude: (minLat + maxLat) / 2, longitude: (minLng + maxLng) / 2)
+        if maxLat - minLat < 0.02 && maxLng - minLng < 0.02 {
+            return MKCoordinateRegion(center: center, span: MKCoordinateSpan(latitudeDelta: 0.15, longitudeDelta: 0.15))
+        }
+        return MKCoordinateRegion(center: center, span: MKCoordinateSpan(latitudeDelta: (maxLat - minLat) * 1.4 + 0.05,
+                                                                         longitudeDelta: (maxLng - minLng) * 1.4 + 0.05))
+    }
+
     private func fit() {
         guard !pins.isEmpty else { return }
-        let lats = pins.map(\.lat), lngs = pins.map(\.lng)
-        let minLat = lats.min()!, maxLat = lats.max()!, minLng = lngs.min()!, maxLng = lngs.max()!
-        let region = MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: (minLat + maxLat) / 2, longitude: (minLng + maxLng) / 2),
-            span: MKCoordinateSpan(latitudeDelta: max(0.5, (maxLat - minLat) * 1.4), longitudeDelta: max(0.5, (maxLng - minLng) * 1.4)))
+        let region = Self.fitRegion(pins)
         withAnimation(.easeInOut(duration: 0.4)) { position = .region(region) }
     }
 
@@ -105,7 +113,7 @@ struct ExploreMapView: View {
             .foregroundStyle(on ? Pc.onPine : .white)
             .lineLimit(1)
             .padding(.horizontal, 8).padding(.vertical, 5)
-            .background(Capsule().fill(on ? Pc.pine : color(p.kind)))
+            .background(Capsule().fill(on ? Pc.pine : p.isPast ? Pc.ink3 : color(p.kind)))
             .overlay(Capsule().strokeBorder(.white, lineWidth: 1.5))
             .shadow(color: .black.opacity(0.2), radius: 3, y: 2)
             .accessibilityLabel("\(p.title), \(p.place ?? "")")
@@ -134,7 +142,8 @@ struct ExploreMapView: View {
         var parts: [String] = []
         if let place = p.place { parts.append(place.components(separatedBy: ",").first ?? place) }
         if let d = p.date { parts.append(Fmt.dayMonth(d)) }
-        if let price = p.priceFromPaise { parts.append(Fmt.rupees(price) + (p.unit.map { "/\($0)" } ?? "")) }
+        if let price = p.priceFromPaise { parts.append(Fmt.rupees(price) + (p.unit.map { "/\($0)" } ?? (p.kind == "trip" ? "/person" : ""))) }
+        if p.isPast { parts.append("Ask for dates"); return parts.joined(separator: " · ") }
         if let s = p.seatsLeft { parts.append("\(s) left") }
         if let s = p.spotsLeft, p.kind == "plan" { parts.append("\(s) spots open") }
         return parts.joined(separator: " · ")
