@@ -187,6 +187,11 @@ class AccountRepository(
         if (fcmToken != null) apiUnit { api.deleteDevice(DeviceDeleteRequest(fcmToken)) }
         if (token != null) auth.logout(token)
         session.clear()
+        wipeLocal()
+    }
+
+    /** Everything on this phone that belongs to the account: name, photo, trips, chats, inbox. */
+    private suspend fun wipeLocal() {
         db.outbox().clear()
         db.cache().delete(KEY_ME)
         db.cache().delete("my_trips")
@@ -196,6 +201,16 @@ class AccountRepository(
         db.chats().clear()
         settings.clearAccountScoped()
         onSignedOut()
+    }
+
+    init {
+        // Signed out some other way (session expired and couldn't be renewed, or an older build
+        // left your profile behind): don't keep showing your name and photo.
+        scope.launch {
+            session.flow.collect { s ->
+                if (s == null && session.session == null && db.cache().get(KEY_ME) != null) wipeLocal()
+            }
+        }
     }
 
     // Preferences: applied locally first, then PUT (partial) through the outbox.
