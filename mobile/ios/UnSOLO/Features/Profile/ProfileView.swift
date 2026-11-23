@@ -288,7 +288,7 @@ struct ProfileContent: View {
                 MiniArc(counts: SeatCounts(plan: p), womenOnly: p.audience == .women)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(p.displayTitle).font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink)
-                    Text("Plan · \(p.memberCount) of \(p.spotsTotal ?? p.seats.count) · \(p.openSpots) spots open").pcFont(.small).foregroundStyle(Pc.ink2)
+                    Text("Plan · \(SeatCounts(plan: p).short)").pcFont(.small).foregroundStyle(Pc.ink2)
                     if let s = app.tribe.local[p.id]?.state { Text(s == "held" ? "Held for review" : s.capitalized).pcFont(.small, weight: .semibold).foregroundStyle(Pc.goldInk) }
                 }
                 Spacer()

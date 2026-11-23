@@ -490,7 +490,7 @@ struct NextDepartureLink: View {
                 MiniArc(counts: counts, size: 34)
                 VStack(alignment: .leading, spacing: 1) {
                     Text("\(label) · \(Fmt.weekdayDayMonth(trip.nextDeparture))").font(.system(size: 12.5, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1).minimumScaleFactor(0.85)
-                    Text("\(counts.isFull ? "Full" : "\(counts.open) spot\(counts.open == 1 ? "" : "s") left") · \(Fmt.rupees(trip.priceFromPaise))")
+                    Text("\(counts.short) · \(Fmt.rupees(trip.priceFromPaise))")
                         .font(.system(size: 12)).foregroundStyle(Pc.ink2).lineLimit(1)
                 }
                 Spacer(minLength: 4)

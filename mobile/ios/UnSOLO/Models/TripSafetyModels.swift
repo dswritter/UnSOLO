@@ -71,7 +71,9 @@ struct MapPin: Codable, Hashable, Sendable, Identifiable {
     var unit: String?
     var date: String?
     var seatsLeft: Int?
+    var seatsTotal: Int?
     var spotsLeft: Int?
+    var spotsTotal: Int?
     var image: Media?
     /// A trip whose dates have all passed (date and seatsLeft are null): grey pin, "Ask for dates".
     var past: Bool?

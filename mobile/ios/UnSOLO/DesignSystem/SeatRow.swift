@@ -29,42 +29,39 @@ struct SeatCounts: Hashable {
         self.init(total: total, open: max(0, total - plan.memberCount))
     }
 
+    var stage: SeatCopy.Stage { SeatCopy.stage(total: total, left: open) }
+    /// "12 spots open" / "3 going" / "4/12 spots left" / "Full".
+    var short: String { SeatCopy.short(total: total, left: open) }
+    /// Date pills: "12 open" / "3 going" / "4/12 left" / "Full".
+    var tiny: String { SeatCopy.tiny(total: total, left: open) }
+    /// The trip page: "3 going · group of 12" / "4 of 12 spots left".
+    var long: String { SeatCopy.long(total: total, left: open) }
+    var center: SeatCopy.Center { SeatCopy.center(total: total, left: open) }
+
     /// "8 of 12 spots open" / "Full, 12 of 12 spots taken".
     func accessibilityText(noun: String = "spots") -> String {
         isFull ? "Full, \(total) of \(total) \(noun) taken" : "\(open) of \(total) \(noun) open"
     }
 }
 
-/// The text line every ring is paired with:
-/// "Be first in the circle · 12 spots open" / "8 of 12 open · 4 going" / "Full · 12/12".
+/// The text line every ring is paired with (SeatCopy): "12 spots open" / "3 going" / "4/12 spots left" / "Full".
+/// `long` (the trip page): "3 going · group of 12" / "4 of 12 spots left".
 struct SeatCaption: View {
     let counts: SeatCounts
     var noun = "spots"
     var font: Font = .system(size: 12, weight: .semibold)
+    var long = false
 
     var body: some View {
         text.font(font).monospacedDigit().lineLimit(1).minimumScaleFactor(0.85)
-            .accessibilityLabel(Self.plain(counts, noun: noun))
+            .accessibilityLabel(long ? counts.long : counts.short)
     }
 
     private var text: Text {
-        let p = Self.parts(counts, noun: noun)
-        if let rest = p.rest {
-            return Text(p.strong).foregroundStyle(Pc.ink).fontWeight(.bold) + Text(" · \(rest)").foregroundStyle(Pc.ink2)
-        }
-        return Text(p.strong).foregroundStyle(counts.isFull ? Pc.full : Pc.ink).fontWeight(.bold)
+        Text(long ? counts.long : counts.short).foregroundStyle(counts.isFull ? Pc.full : Pc.ink).fontWeight(.bold)
     }
 
-    static func parts(_ c: SeatCounts, noun: String = "spots") -> (strong: String, rest: String?) {
-        if c.isFull { return ("Full · \(c.total)/\(c.total)", nil) }
-        if c.going == 0 { return ("Be first in the circle", "\(c.open) \(c.open == 1 ? String(noun.dropLast()) : noun) open") }
-        return ("\(c.open) of \(c.total) open", "\(c.going) going")
-    }
-
-    static func plain(_ c: SeatCounts, noun: String = "spots") -> String {
-        let p = parts(c, noun: noun)
-        return p.rest.map { "\(p.strong) · \($0)" } ?? p.strong
-    }
+    static func plain(_ c: SeatCounts, noun: String = "spots") -> String { c.short }
 }
 
 // MARK: - Seat ring model
@@ -433,16 +430,17 @@ struct SeatRing: View {
         .frame(maxWidth: geo.centreRadius * 1.8)
     }
 
-    /// "8 /12" over "spots left"; full: "12 /12" over "full". Sized to fit inside the centre disc.
+    /// SeatCopy centre: "12" over "spots open", "3" over "going", "4 /12" over "spots left", "12 /12" over "full".
     private func spotsLabel(_ c: SeatCounts) -> some View {
         let onPhoto: Bool = { if case .photo = centre { return true } else { return false } }()
         let big = max(14, size * 0.2)
         let fg: Color = onPhoto ? .white : Pc.ink
-        let word = c.isFull ? "full" : (c.open == 1 ? "spot left" : "spots left")
+        let label = c.center
+        let word = label.small
         return VStack(spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 1) {
-                Text(c.isFull ? "\(c.total)" : "\(c.open)").font(PcFont.rounded(big, .heavy)).tracking(-0.5)
-                Text("/\(c.total)").font(PcFont.rounded(big * 0.36, .bold)).opacity(0.6)
+                Text(label.big).font(PcFont.rounded(big, .heavy)).tracking(-0.5)
+                if let of = label.of { Text(of).font(PcFont.rounded(big * 0.36, .bold)).opacity(0.6) }
             }
             .foregroundStyle(fg)
             .lineLimit(1)

@@ -158,8 +158,8 @@ struct ExploreMapView: View {
         if let d = p.date { parts.append(Fmt.dayMonth(d)) }
         if let price = p.priceFromPaise { parts.append(Fmt.rupees(price) + (p.unit.map { "/\($0)" } ?? (p.kind == "trip" ? "/person" : ""))) }
         if p.isPast { parts.append("Ask for dates"); return parts.joined(separator: " · ") }
-        if let s = p.seatsLeft { parts.append("\(s) left") }
-        if let s = p.spotsLeft, p.kind == "plan" { parts.append("\(s) spots open") }
+        if let s = p.seatsLeft { parts.append(SeatCopy.short(total: p.seatsTotal ?? s, left: s)) }
+        if let s = p.spotsLeft, p.kind == "plan" { parts.append(SeatCopy.short(total: p.spotsTotal ?? s, left: s)) }
         return parts.joined(separator: " · ")
     }
 

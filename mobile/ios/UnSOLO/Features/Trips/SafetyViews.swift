@@ -505,55 +505,104 @@ struct ReviewComposer: View {
 /// Reviews on a trip page, ones with photos first.
 struct TripReviewsSection: View {
     let reviews: [TripReview]
+    var rating: Rating?
+    var isListing = false
+    @Environment(Router.self) private var router
     @State private var viewing: Media?
+    @State private var showAll = false
 
+    /// Always there once details load: a summary when someone has rated it, the reviews (written ones first,
+    /// as the server sends them), or a line saying when reviews come.
     var body: some View {
-        if !reviews.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
-                SectionHeader(title: "Reviews", trailing: "\(reviews.count)")
-                ForEach(reviews.prefix(6)) { r in
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack(spacing: 8) {
-                            if let a = r.author { Avatar(user: a, size: 26); Text(a.firstName).pcFont(.small, weight: .bold).foregroundStyle(Pc.ink) }
-                            let n = min(5, max(0, r.rating ?? 0))
-                            Text(String(repeating: "★", count: n) + String(repeating: "☆", count: 5 - n)).pcFont(.small).foregroundStyle(Pc.goldInk)
-                            Spacer()
-                            if let at = r.createdAt { Text(Fmt.relative(at)).pcFont(.label).foregroundStyle(Pc.ink3) }
-                        }
-                        if let t = r.title, !t.isEmpty { Text(t).pcFont(.bodyStrong).foregroundStyle(Pc.ink) }
-                        if let b = r.body, !b.isEmpty { Text(b).pcFont(.body).foregroundStyle(Pc.ink).lineLimit(6) }
-                        if !r.photos.isEmpty {
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 6) {
-                                    ForEach(Array(r.photos.enumerated()), id: \.offset) { _, m in
-                                        Button { viewing = m } label: {
-                                            PcAsyncImage(media: m, targetSize: CGSize(width: 96, height: 96)).frame(width: 96, height: 96).clipShape(Pc.shape(12))
-                                        }
-                                        .buttonStyle(.pcPress)
-                                        .accessibilityLabel("Review photo")
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .padding(12)
-                    .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Pc.rule, lineWidth: 1))
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 26)
-            .fullScreenCover(item: Binding(get: { viewing.map { IdentifiedMedia(media: $0) } }, set: { viewing = $0?.media })) { m in
-                ZStack(alignment: .topTrailing) {
-                    Color.black.ignoresSafeArea()
-                    PcAsyncImage(media: m.media, contentMode: .fit).ignoresSafeArea()
-                    Button { viewing = nil } label: {
-                        Image(systemName: "xmark").font(.system(size: 16, weight: .bold)).foregroundStyle(.white).frame(width: 44, height: 44)
-                    }
-                    .accessibilityLabel("Close")
-                    .padding()
+        VStack(alignment: .leading, spacing: 10) {
+            SectionHeader(title: "Reviews", trailing: reviews.isEmpty ? nil : "\(reviews.count) review\(reviews.count == 1 ? "" : "s")")
+            if let r = rating, r.count > 0, let avg = r.avg { summary(r, avg) }
+            if reviews.isEmpty {
+                Text(isListing ? "No reviews yet. Guests review after their stay." : "No reviews yet. Travellers review once the trip is over.")
+                    .pcFont(.body).foregroundStyle(Pc.ink2)
+            } else {
+                ForEach(showAll ? reviews : Array(reviews.prefix(6))) { r in card(r) }
+                if reviews.count > 6 && !showAll {
+                    Button("See all \(reviews.count) reviews") { showAll = true }.buttonStyle(.pc(.outline, fullWidth: true))
                 }
             }
         }
+        .padding(.horizontal, 16)
+        .padding(.top, 26)
+        .fullScreenCover(item: Binding(get: { viewing.map { IdentifiedMedia(media: $0) } }, set: { viewing = $0?.media })) { m in
+            ZStack(alignment: .topTrailing) {
+                Color.black.ignoresSafeArea()
+                PcAsyncImage(media: m.media, contentMode: .fit).ignoresSafeArea()
+                Button { viewing = nil } label: {
+                    Image(systemName: "xmark").font(.system(size: 16, weight: .bold)).foregroundStyle(.white).frame(width: 44, height: 44)
+                }
+                .accessibilityLabel("Close")
+                .padding()
+            }
+        }
+    }
+
+    private static func stars(_ value: Double) -> String {
+        let n = min(5, max(0, Int(value.rounded())))
+        return String(repeating: "★", count: n) + String(repeating: "☆", count: 5 - n)
+    }
+
+    private func summary(_ r: Rating, _ avg: Double) -> some View {
+        HStack(alignment: .center, spacing: 14) {
+            Text(String(format: "%.1f", avg)).font(PcFont.rounded(40, .heavy)).foregroundStyle(Pc.ink)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(Self.stars(avg)).font(.system(size: 16)).foregroundStyle(Pc.goldInk)
+                Text("\(r.count) traveller\(r.count == 1 ? "" : "s") rated this").pcFont(.small).foregroundStyle(Pc.ink2)
+                let parts = [r.destination.map { "Place \(String(format: "%.1f", $0))" }, r.experience.map { "Experience \(String(format: "%.1f", $0))" }].compactMap { $0 }
+                if !parts.isEmpty { Text(parts.joined(separator: " · ")).pcFont(.small, weight: .semibold).foregroundStyle(Pc.ink) }
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Pc.tonal, in: Pc.shape(16))
+        .accessibilityElement(children: .combine)
+    }
+
+    private func card(_ r: TripReview) -> some View {
+        let n = min(5, max(0, r.rating ?? 0))
+        let hasText = !(r.title ?? "").isEmpty || !(r.body ?? "").isEmpty
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                if let a = r.author {
+                    Button { router.push(.profile(username: a.username)) } label: {
+                        HStack(spacing: 8) {
+                            Avatar(user: a, size: 26)
+                            Text(a.firstName).pcFont(.small, weight: .bold).foregroundStyle(Pc.ink)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(a.name)'s profile")
+                }
+                Text(String(repeating: "★", count: n) + String(repeating: "☆", count: 5 - n)).pcFont(.small).foregroundStyle(Pc.goldInk)
+                    .accessibilityLabel("\(n) out of 5")
+                Spacer()
+                if let at = r.createdAt { Text(Fmt.relative(at)).pcFont(.label).foregroundStyle(Pc.ink3) }
+            }
+            if let t = r.title, !t.isEmpty { Text(t).pcFont(.bodyStrong).foregroundStyle(Pc.ink) }
+            if let b = r.body, !b.isEmpty { Text(b).pcFont(.body).foregroundStyle(Pc.ink).lineLimit(6) }
+            if !hasText && r.photos.isEmpty { Text("Rated \(n) out of 5").pcFont(.small).foregroundStyle(Pc.ink2) }
+            if !r.photos.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(Array(r.photos.enumerated()), id: \.offset) { _, m in
+                            Button { viewing = m } label: {
+                                PcAsyncImage(media: m, targetSize: CGSize(width: 96, height: 96)).frame(width: 96, height: 96).clipShape(Pc.shape(12))
+                            }
+                            .buttonStyle(.pcPress)
+                            .accessibilityLabel("Review photo")
+                        }
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Pc.rule, lineWidth: 1))
     }
 
     private struct IdentifiedMedia: Identifiable { let media: Media; var id: String { media.url } }

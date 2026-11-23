@@ -333,7 +333,7 @@ struct TripCard: View {
                     Spacer(minLength: 4)
                     if showsRing {
                         let gone = Fmt.isPast(trip.nextDeparture)
-                        Text(gone ? (counts.going > 0 ? "\(counts.going) travelled" : "Trip done") : counts.isFull ? "Full" : counts.going == 0 ? "Be first in the circle" : "\(counts.going) going")
+                        Text(gone ? (counts.going > 0 ? "\(counts.going) travelled" : "Trip done") : counts.isFull ? "Full" : counts.going == 0 ? "Be first in the circle" : counts.stage == .going ? "" : "\(counts.going) going")
                             .font(.system(size: 12, weight: .bold)).foregroundStyle(counts.isFull && !gone ? Pc.full : Pc.ink)
                             .lineLimit(1).fixedSize()
                     } else if trip.isListing {
@@ -457,7 +457,7 @@ struct TripListRow: View {
                 if category == .trips { MiniArc(counts: counts) }
                 VStack(alignment: .trailing, spacing: 1) {
                     Text(Fmt.rupees(trip.priceFromPaise)).font(PcFont.rounded(15)).foregroundStyle(Pc.ink).lineLimit(1).fixedSize()
-                    Text(trip.isListing ? "per \(trip.unit ?? "booking")" : category == .trips ? (Fmt.isPast(trip.nextDeparture) ? "Done" : counts.isFull ? "Full" : "\(counts.open) open") : category.meter(left: trip.seatsLeft, total: trip.seatsTotal))
+                    Text(trip.isListing ? "per \(trip.unit ?? "booking")" : category == .trips ? (Fmt.isPast(trip.nextDeparture) ? "Done" : counts.tiny) : category.meter(left: trip.seatsLeft, total: trip.seatsTotal))
                         .pcFont(.small, weight: counts.isFull ? .bold : .regular).foregroundStyle(counts.isFull ? Pc.full : Pc.ink2).lineLimit(1)
                 }
                 .frame(minWidth: 56, alignment: .trailing)

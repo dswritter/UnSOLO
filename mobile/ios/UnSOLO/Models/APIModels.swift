@@ -74,8 +74,12 @@ struct Departure: Codable, Hashable, Sendable {
 }
 
 struct Rating: Codable, Hashable, Sendable {
-    var avg: Double
+    /// Null while nobody has rated it.
+    var avg: Double?
     var count: Int
+    /// Averages for the place and the experience (fall back to the overall rating per review).
+    var destination: Double?
+    var experience: Double?
 }
 
 /// `GET /trips/{slug}`: TripLite & { description, includes, images, departures, seats, rating, stories, planningCount }.

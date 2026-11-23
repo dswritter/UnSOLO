@@ -14,7 +14,8 @@ final class RingAndThumbTests: XCTestCase {
         let c = SeatCounts(total: 12, open: 8)
         XCTAssertEqual(c.going, 4)
         XCTAssertEqual(c.accessibilityText(), "8 of 12 spots open")
-        XCTAssertEqual(SeatCaption.plain(SeatCounts(total: 12, open: 12)), "Be first in the circle · 12 spots open")
-        XCTAssertEqual(SeatCaption.plain(SeatCounts(total: 12, open: 0)), "Full · 12/12")
+        XCTAssertEqual(SeatCaption.plain(SeatCounts(total: 12, open: 12)), "12 spots open")
+        XCTAssertEqual(c.short, "4 going", "under half booked")
+        XCTAssertEqual(SeatCaption.plain(SeatCounts(total: 12, open: 0)), "Full")
     }
 }

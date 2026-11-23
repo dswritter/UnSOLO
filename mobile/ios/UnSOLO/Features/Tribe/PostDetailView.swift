@@ -134,8 +134,8 @@ struct PostDetailView: View {
                 SeatRing(seats: RingSeats.from(seats), size: 170, plan: true, womenOnly: post.audience == .women,
                          dots: v?.membership == .approved || v?.isAuthor == true ? .faces : (session.isSignedIn ? .initials : .none),
                          badge: RingBadge(user: post.author, kind: .organiser),
-                         centreLabel: counts.isFull ? ("Full", "\(counts.total)/\(counts.total)") : ("\(counts.open)", counts.open == 1 ? "spot left" : "spots left"),
-                         waiting: waiting)
+                         waiting: waiting,
+                         centreSpots: counts)
                     .padding(.top, 18)
                 Group {
                     if waiting != nil {

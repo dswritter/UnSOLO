@@ -157,6 +157,38 @@ final class ParityTests: XCTestCase {
         XCTAssertNil(Mentions.spaceAccepted(old: "hi there", new: "hi there ", best: { _ in best }))
     }
 
+    func testSeatCopyStages() {
+        // Nobody booked
+        XCTAssertEqual(SeatCopy.short(total: 12, left: 12), "12 spots open")
+        XCTAssertEqual(SeatCopy.tiny(total: 12, left: 12), "12 open")
+        XCTAssertEqual(SeatCopy.center(total: 12, left: 12), .init(big: "12", of: nil, small: "spots open"))
+        // Under half booked
+        XCTAssertEqual(SeatCopy.short(total: 12, left: 9), "3 going")
+        XCTAssertEqual(SeatCopy.long(total: 12, left: 9), "3 going · group of 12")
+        XCTAssertEqual(SeatCopy.center(total: 12, left: 9), .init(big: "3", of: nil, small: "going"))
+        XCTAssertFalse(SeatCopy.scarce(total: 12, left: 9))
+        // Half or more
+        XCTAssertEqual(SeatCopy.short(total: 12, left: 6), "6/12 spots left")
+        XCTAssertEqual(SeatCopy.short(total: 12, left: 4), "4/12 spots left")
+        XCTAssertEqual(SeatCopy.long(total: 12, left: 4), "4 of 12 spots left")
+        XCTAssertEqual(SeatCopy.tiny(total: 12, left: 4), "4/12 left")
+        XCTAssertEqual(SeatCopy.center(total: 12, left: 4), .init(big: "4", of: "/12", small: "spots left"))
+        XCTAssertEqual(SeatCopy.short(total: 12, left: 1), "1/12 spot left")
+        XCTAssertTrue(SeatCopy.scarce(total: 12, left: 4))
+        // Full
+        XCTAssertEqual(SeatCopy.short(total: 12, left: 0), "Full")
+        XCTAssertEqual(SeatCopy.tiny(total: 12, left: 0), "Full")
+        XCTAssertEqual(SeatCopy.center(total: 12, left: 0), .init(big: "12", of: "/12", small: "full"))
+        XCTAssertFalse(SeatCopy.scarce(total: 12, left: 0))
+        XCTAssertFalse(SeatCopy.scarce(total: nil, left: 3))
+    }
+
+    func testRatingWithNoReviewsDecodes() throws {
+        let r = try JSON.decoder().decode(Rating.self, from: Data(#"{"avg":null,"count":0,"destination":null,"experience":null}"#.utf8))
+        XCTAssertNil(r.avg)
+        XCTAssertEqual(r.count, 0)
+    }
+
     func testPastDeparture() {
         let now = Fmt.day("2026-11-22")!
         XCTAssertTrue(Fmt.isPast("2026-11-21", now: now))
