@@ -29,7 +29,7 @@ export const GET = route(async (req: Request) => {
     for (const t of trips.items) {
       const p = at.get(t.place?.slug ?? '')
       if (p) pins.push({ kind: 'trip', id: t.id, slug: t.slug, title: t.title, place: t.place?.name ?? null, lat: p.lat, lng: p.lng,
-        priceFromPaise: t.priceFromPaise, date: t.nextDeparture, seatsLeft: t.nextDeparture ? t.seatsLeft : null, past: !t.nextDeparture, image: t.image })
+        priceFromPaise: t.priceFromPaise, date: t.nextDeparture, seatsLeft: t.nextDeparture ? t.seatsLeft : null, seatsTotal: t.nextDeparture ? t.seatsTotal : null, past: !t.nextDeparture, image: t.image })
     }
     // Fill in a few missing destinations after we answer (next request has them).
     if (trips.items.some((t) => t.place?.slug && !at.has(t.place.slug))) after(() => geocodeMissingDestinations(svc, 5).then(() => undefined))
@@ -48,7 +48,7 @@ export const GET = route(async (req: Request) => {
     for (const p of (data ?? []) as Row[]) {
       const m = ((p.media as Row[] | null) ?? []).sort((a, b) => Number(a.position) - Number(b.position))[0]
       pins.push({ kind: 'plan', id: p.id, postId: p.id, title: p.title ?? `Plan: ${p.place_name}`, place: p.place_name, lat: Number(p.lat), lng: Number(p.lng),
-        date: p.starts_on, spotsLeft: Math.max(Number(p.spots_total ?? 0) - Number(p.member_count ?? 0), 0), image: m ? mediaFromUrl(String(m.url)) : null })
+        date: p.starts_on, spotsLeft: Math.max(Number(p.spots_total ?? 0) - Number(p.member_count ?? 0), 0), spotsTotal: Number(p.spots_total ?? 0) || null, image: m ? mediaFromUrl(String(m.url)) : null })
     }
   }
   return ok({ pins }, { cache: ctx.user ? 'private' : 'public', req })

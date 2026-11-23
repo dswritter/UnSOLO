@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { seatShort } from '@/lib/seats'
 import type { ReactNode } from 'react'
 import { BadgeCheck, CalendarDays, ChartBar, Clock3, MapPin, MessageCircleQuestionMark, Venus, Wallet } from 'lucide-react'
 import type { Post, TripLite, UserLite } from '@/lib/tribe/models'
@@ -93,7 +94,7 @@ export function PlanCard({ post, signedIn, demo, ringSize = 92, compact }: { pos
         </Link>
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <PlanFacts post={{ ...post, place: compact ? post.place : null }} />
-          <p className="fc-caption text-[13px]">{total > 0 ? <><strong>{r.taken} going</strong> · {Math.max(total - r.taken, 0)} {total - r.taken === 1 ? 'spot' : 'spots'}</> : null}</p>
+          <p className="fc-caption text-[13px]">{total > 0 ? <strong>{seatShort(total, total - r.taken)}</strong> : null}</p>
           <PlanCardAction post={post} signedIn={signedIn} />
         </div>
       </div>
@@ -102,7 +103,7 @@ export function PlanCard({ post, signedIn, demo, ringSize = 92, compact }: { pos
   )
 }
 
-/** "Next departure · 3 seats left · Take a seat" under a story about a hosted trip. */
+/** "Next departure · 3 going · Grab a spot" under a story about a hosted trip. */
 export function TripLinkCard({ trip, className }: { trip: TripLite; className?: string }) {
   const total = trip.seatsTotal ?? 0
   const left = trip.seatsLeft
@@ -112,7 +113,7 @@ export function TripLinkCard({ trip, className }: { trip: TripLite; className?: 
       <span className="min-w-0 flex-1">
         <b className="block truncate">{trip.nextDeparture ? `Next departure · ${dateRange(trip.nextDeparture, null)}` : trip.title}</b>
         <span className="fc-linkcard-sub line-clamp-2">
-          {left != null ? (left === 0 ? 'Full · ' : `${left} ${left === 1 ? 'spot' : 'spots'} left · `) : ''}{rupees(trip.priceFromPaise)} · {trip.title}
+          {left != null && total > 0 ? `${seatShort(total, left)} · ` : ''}{rupees(trip.priceFromPaise)} · {trip.title}
         </span>
       </span>
       <span className="fc-linkcard-go">Grab a spot →</span>
@@ -177,7 +178,7 @@ export function TripStub({ trip, placed }: { trip: TripLite; placed?: boolean })
       {total > 0 && left != null && <MiniArc total={total} taken={total - left} />}
       <span className="shrink-0 text-right">
         <span className="pc-price block text-[17px]">{rupees(trip.priceFromPaise)}</span>
-        {left != null && <span className="block text-[12px] text-muted-foreground">{left === 0 ? 'Full' : `${left} open`}</span>}
+        {left != null && total > 0 && <span className="block text-[12px] text-muted-foreground">{seatShort(total, left)}</span>}
       </span>
     </Link>
   )

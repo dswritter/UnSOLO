@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { seatShort } from '@/lib/seats'
 import { BadgeCheck, CalendarDays, Venus, Wallet } from 'lucide-react'
 import type { Post } from '@/lib/tribe/models'
 import { SeatRing, segsFromSeats } from '@/components/tribe/SeatRing'
@@ -34,7 +35,7 @@ export function PlanMiniCard({ post: p, ringSize = 80 }: { post: Post; ringSize?
         <div className="min-w-0 flex-1 space-y-1.5 text-[13px]">
           {p.startsOn && <p className="flex items-center gap-1.5 font-semibold"><CalendarDays className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />{dateRange(p.startsOn, p.endsOn)}{n ? ` · ${n}N` : ''}</p>}
           {p.estCostText && <p className="flex items-center gap-1.5 text-muted-foreground"><Wallet className="h-3.5 w-3.5" aria-hidden /><span className="truncate">{p.estCostText.replace(/^Est\.\s*/i, '~')}</span></p>}
-          <p className="fc-caption text-[13px]"><strong>{taken} going</strong> · {Math.max((p.spotsTotal ?? segs.length) - taken, 0)} spots</p>
+          <p className="fc-caption text-[13px]"><strong>{seatShort(p.spotsTotal ?? segs.length, (p.spotsTotal ?? segs.length) - taken)}</strong></p>
           <span className="pc-btn pc-btn-sm pc-btn-outline mt-1">Request to join</span>
         </div>
       </div>

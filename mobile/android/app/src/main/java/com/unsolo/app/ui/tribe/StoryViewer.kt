@@ -175,13 +175,13 @@ fun StoryViewerScreen(startId: String, nav: AppNav) {
                 t != null -> StoryLink(
                     lead = { MiniArc(t.seatsTotal ?: 0, (t.seatsTotal ?: 0) - (t.seatsLeft ?: 0), size = 38.dp) },
                     title = "${t.title} · ${Fmt.dayMonth(t.nextDeparture)}",
-                    sub = listOfNotNull(t.seatsLeft?.let { "$it ${if (it == 1) "spot" else "spots"} left" }, com.unsolo.app.data.MoneyFormat.rupees(t.priceFromPaise)).joinToString(" · "),
+                    sub = listOfNotNull(t.seatsLeft?.let { l -> t.seatsTotal?.takeIf { it > 0 }?.let { com.unsolo.app.core.util.SeatCopy.short(it, l) } }, com.unsolo.app.data.MoneyFormat.rupees(t.priceFromPaise)).joinToString(" · "),
                     cta = "Grab a spot →", onClick = { nav.to(Routes.trip(t.slug)) },
                 )
                 plan != null -> StoryLink(
                     lead = { MiniArc(plan.spotsTotal ?: plan.seats.size, plan.memberCount, size = 38.dp, women = plan.audience == "women") },
                     title = plan.title ?: "Plan",
-                    sub = "${post.author.firstName}'s next plan · ${((plan.spotsTotal ?: 0) - plan.memberCount).coerceAtLeast(0)} spots",
+                    sub = "${post.author.firstName}'s next plan" + (plan.spotsTotal?.takeIf { it > 0 }?.let { " · " + com.unsolo.app.core.util.SeatCopy.short(it, it - plan.memberCount) } ?: ""),
                     cta = "Join →", onClick = { nav.to(Routes.post(plan.id)) },
                 )
             }

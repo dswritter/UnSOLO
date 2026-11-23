@@ -1,5 +1,6 @@
 'use client'
 
+import { seatShort } from '@/lib/seats'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
@@ -150,7 +151,7 @@ export function StoryViewer({ groups, startGroup, onClose, onSeen, plans, signed
               <span className="min-w-0">
                 <b className="block truncate">{story.trip.title}</b>
                 <span className="block truncate text-[12px] text-muted-foreground">
-                  {story.trip.nextDeparture ? `Next ${dateRange(story.trip.nextDeparture, null)} · ` : ''}{story.trip.seatsLeft != null ? `${story.trip.seatsLeft} ${story.trip.seatsLeft === 1 ? 'spot' : 'spots'} left · ` : ''}{rupees(story.trip.priceFromPaise)}
+                  {story.trip.nextDeparture ? `Next ${dateRange(story.trip.nextDeparture, null)} · ` : ''}{story.trip.seatsLeft != null && story.trip.seatsTotal ? `${seatShort(story.trip.seatsTotal, story.trip.seatsLeft)} · ` : ''}{rupees(story.trip.priceFromPaise)}
                 </span>
               </span>
               <b className="ml-1 shrink-0 text-[13px] text-[color:var(--pc-accent-ink)]">Grab a spot →</b>
@@ -160,7 +161,7 @@ export function StoryViewer({ groups, startGroup, onClose, onSeen, plans, signed
               {plan.spotsTotal ? <MiniArc total={plan.spotsTotal} taken={plan.memberCount} size={38} women={plan.audience === 'women'} /> : null}
               <span className="min-w-0">
                 <b className="block truncate">{plan.title ?? plan.place?.name}</b>
-                <span className="block truncate text-[12px] text-muted-foreground">{story.author.name.split(' ')[0]}’s next plan · {Math.max((plan.spotsTotal ?? 0) - plan.memberCount, 0)} spots</span>
+                <span className="block truncate text-[12px] text-muted-foreground">{story.author.name.split(' ')[0]}’s next plan{plan.spotsTotal ? ` · ${seatShort(plan.spotsTotal, plan.spotsTotal - plan.memberCount)}` : ''}</span>
               </span>
               <b className="ml-1 shrink-0 text-[13px] text-[color:var(--pc-accent-ink)]">Join →</b>
             </Link>

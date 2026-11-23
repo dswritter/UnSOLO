@@ -1,5 +1,6 @@
 export const revalidate = 300 // 5 minutes
 
+import { seatsScarce } from '@/lib/seats'
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
@@ -325,7 +326,7 @@ export default async function PackageDetailPage({
   // nudge next to the interest heart. Only show if genuinely scarce (1–3).
   const openSlotCounts = Object.values(availableSlotsMap).filter(n => n > 0)
   const scarceSlotsLeft = openSlotCounts.length > 0 ? Math.min(...openSlotCounts) : null
-  const showScarcePill = scarceSlotsLeft !== null && scarceSlotsLeft <= 3
+  const showScarcePill = scarceSlotsLeft !== null && scarceSlotsLeft <= 3 && seatsScarce(package_.max_group_size, scarceSlotsLeft)
 
   const wanderBackHref = isCommunityTrip
     ? '/wander?search=1&tab=trips&tripSource=community'

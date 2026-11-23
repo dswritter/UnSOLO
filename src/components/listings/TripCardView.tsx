@@ -12,6 +12,7 @@ import { compactTripDuration, primaryTripBadge, shortListingLocation } from '@/l
 import { writeDetailPreview } from '@/lib/detail-preview'
 import { ListingCardBadge } from '@/components/listings/ListingCardParts'
 import { SeatRing, segsFromCounts, spotsCenter } from '@/components/tribe/SeatRing'
+import { seatStage } from '@/lib/seats'
 import { nextDeparture } from '@/lib/tribe/models'
 
 export type TripCardViewProps = {
@@ -31,7 +32,7 @@ export function TripCardView({
   pkg, pastEdition, spotsBooked, interestCount, interested, togglePending = false, imageSizes, onOpen, onPrefetch, onToggleInterest,
 }: TripCardViewProps) {
   const spotsLeft = pkg.max_group_size ? pkg.max_group_size - spotsBooked : null
-  const badge = primaryTripBadge({ pastEdition, spotsLeft, isFeatured: pkg.is_featured, isCommunity: Boolean(pkg.host_id || pkg.created_on_behalf_by) })
+  const badge = primaryTripBadge({ pastEdition, spotsLeft, spotsTotal: pkg.max_group_size ?? null, isFeatured: pkg.is_featured, isCommunity: Boolean(pkg.host_id || pkg.created_on_behalf_by) })
   const departure = packageNextDepartureLine(pkg)
   const dateLine = pastEdition
     ? departure?.replace(/^Last departure /, 'Last ran ')
@@ -118,7 +119,7 @@ export function TripCardView({
         <div className="flex items-center justify-between gap-2">
           <span className="pc-price text-[16px]">{tiered ? <small className="!ml-0 mr-1">From</small> : null}{formatPrice(pkg.price_paise)}<small>/person</small></span>
           {showRing ? (
-            <span className="fc-caption shrink-0 text-[12px]">{full ? <strong>Full</strong> : spotsBooked > 0 ? <><strong>{spotsBooked} going</strong></> : <strong>Be first</strong>}</span>
+            <span className="fc-caption shrink-0 text-[12px]">{full ? <strong>Full</strong> : seatStage(total, left) === 'filling' ? <strong>{spotsBooked} going</strong> : seatStage(total, left) === 'open' ? <strong>Be first</strong> : null}</span>
           ) : interestCount > 0 ? (
             <span className="flex shrink-0 items-center gap-1 text-[12px] text-muted-foreground" title={`${interestCount} interested`}>
               <Heart className="h-3 w-3 fill-red-400 text-red-400" aria-hidden="true" />{interestCount}

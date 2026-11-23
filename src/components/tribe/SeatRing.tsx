@@ -2,6 +2,7 @@ import { useId, type CSSProperties, type ReactNode } from 'react'
 import type { Seat, UserLite } from '@/lib/tribe/models'
 import { cn } from '@/lib/utils'
 import { initials } from './format'
+import { seatCenter, seatLong, seatShort, seatStage } from '@/lib/seats'
 
 /**
  * Full Circle seat ring: N arc segments around a circular centre (trip photo, organiser face or a tinted disc).
@@ -65,17 +66,20 @@ export function segsFromCounts(total: number | null | undefined, left: number | 
   return Array.from({ length: t }, (_, i) => ({ state: i < t - l ? 'taken' : 'open' }))
 }
 
-/** "Be first in the circle · 12 spots open" / "8 of 12 open · 4 going" / "Full · 12/12" */
+/** "Be first in the circle · 12 spots open" / "3 going · group of 12" / "4 of 12 spots left" / "Full" (see lib/seats). */
 export function ringCaption(n: number, taken: number): ReactNode {
   if (n <= 0) return null
-  if (taken <= 0) return <><strong>Be first in the circle</strong> · {n} spots open</>
-  if (taken >= n) return <><strong>Full · {n}/{n}</strong></>
-  return <><strong>{n - taken} of {n} open</strong> · {taken} going</>
+  const left = n - taken
+  switch (seatStage(n, left)) {
+    case 'open': return <><strong>Be first in the circle</strong> · {seatShort(n, left)}</>
+    case 'full': return <><strong>Full</strong></>
+    case 'going': return <><strong>{taken} going</strong> · group of {n}</>
+    default: return <><strong>{seatLong(n, left)}</strong> · {taken} going</>
+  }
 }
-/** The one centre label every trip ring uses: "8/12 spots left", or "12/12 full". */
+/** The one centre label every trip ring uses: "12 spots open", "3 going", "4/12 spots left", "12/12 full". */
 export function spotsCenter(total: number, left: number, fontSize?: number) {
-  const full = left <= 0
-  return { big: String(full ? total : left), of: `/${total}`, small: full ? 'full' : left === 1 ? 'spot left' : 'spots left', fontSize }
+  return { ...seatCenter(total, left), fontSize }
 }
 export function ringLabel(n: number, taken: number) {
   return taken >= n ? `Full, ${n} of ${n} spots taken` : `${n - taken} of ${n} spots open`

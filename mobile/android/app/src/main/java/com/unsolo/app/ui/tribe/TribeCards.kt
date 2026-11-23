@@ -1,5 +1,6 @@
 package com.unsolo.app.ui.tribe
 
+import com.unsolo.app.ui.components.spotsPair
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -162,7 +163,7 @@ fun PlanRing(p: Post, size: androidx.compose.ui.unit.Dp, meId: String?, badge: B
     SeatRing(
         data, size, plan = true, women = p.audience == "women", centerUser = p.author,
         badge = if (badge) RingBadge(p.author, organiser = true) else null,
-        centerLabel = if (centerLabel) (if (open == 0) "Full" else "$open") to (if (open == 0) "" else if (open == 1) "spot left" else "spots left") else null,
+        centerLabel = if (centerLabel) (if (open == 0) "Full" to "" else spotsPair(data.total, open)) else null,
         centerLabelSize = if (centerLabel) (size.value * 0.2f).dp else null,
     )
 }

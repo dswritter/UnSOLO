@@ -571,8 +571,8 @@ fun ExploreMapScreen(nav: AppNav, startCategory: String) {
                         Text(p.title, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         Text(listOfNotNull(p.place, p.date?.let { Fmt.dowDayMonth(it) }).joinToString(" · "), style = Pc.type.small, color = c.ink2, maxLines = 1)
                         Text(when (p.kind) {
-                            "plan" -> "${p.spotsLeft ?: 0} spots open"
-                            "trip" -> "${MoneyFormat.rupees(p.priceFromPaise ?: 0)}/person" + (if (p.past) " · Ask for dates" else p.seatsLeft?.let { " · $it left" } ?: "")
+                            "plan" -> p.spotsTotal?.takeIf { it > 0 }?.let { com.unsolo.app.core.util.SeatCopy.short(it, p.spotsLeft ?: it) } ?: "Plan"
+                            "trip" -> "${MoneyFormat.rupees(p.priceFromPaise ?: 0)}/person" + (if (p.past) " · Ask for dates" else p.seatsLeft?.let { l -> p.seatsTotal?.takeIf { it > 0 }?.let { " · " + com.unsolo.app.core.util.SeatCopy.short(it, l) } } ?: "")
                             else -> "${MoneyFormat.rupees(p.priceFromPaise ?: 0)}/${p.unit ?: "booking"}"
                         }, style = Pc.type.smallStrong, color = c.ink)
                     }

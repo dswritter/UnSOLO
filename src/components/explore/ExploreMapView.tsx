@@ -1,5 +1,6 @@
 'use client'
 
+import { seatShort } from '@/lib/seats'
 import { useEffect, useMemo, useState } from 'react'
 import { LazyPinMap, type MapPin } from '@/components/maps/LazyPinMap'
 import { v1 } from '@/lib/api/v1-client'
@@ -20,7 +21,9 @@ type Pin = {
   unit?: string | null
   date?: string | null
   seatsLeft?: number | null
+  seatsTotal?: number | null
   spotsLeft?: number | null
+  spotsTotal?: number | null
   image: Media
 }
 
@@ -55,8 +58,8 @@ function subtitleFor(p: Pin): string | null {
   const parts: string[] = []
   if (p.date) parts.push(shortDate(p.date))
   if (p.priceFromPaise) parts.push(`From ${formatPrice(p.priceFromPaise)}${p.unit ? ` / ${p.unit}` : ''}`)
-  if (p.kind === 'trip' && p.seatsLeft != null && p.seatsLeft <= 5) parts.push(p.seatsLeft === 0 ? 'Full' : `${p.seatsLeft} left`)
-  if (p.kind === 'plan' && p.spotsLeft != null) parts.push(p.spotsLeft === 0 ? 'Full' : `${p.spotsLeft} spots left`)
+  if (p.kind === 'trip' && p.seatsLeft != null && p.seatsTotal) parts.push(seatShort(p.seatsTotal, p.seatsLeft))
+  if (p.kind === 'plan' && p.spotsLeft != null && p.spotsTotal) parts.push(seatShort(p.spotsTotal, p.spotsLeft))
   return parts.join(' · ') || null
 }
 

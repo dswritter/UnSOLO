@@ -1,4 +1,5 @@
 import { INDIAN_STATES } from '@/lib/indian-states'
+import { seatsScarce } from '@/lib/seats'
 
 const STATE_SET = new Set(INDIAN_STATES.map(s => s.toLowerCase()))
 
@@ -42,11 +43,13 @@ export type TripCardBadge = { label: string; tone: 'past' | 'urgent' | 'featured
 export function primaryTripBadge(input: {
   pastEdition: boolean
   spotsLeft: number | null
+  /** Group size: the "Only N left" badge shows only once half the spots are gone. */
+  spotsTotal?: number | null
   isFeatured: boolean
   isCommunity: boolean
 }): TripCardBadge | null {
   if (input.pastEdition) return { label: 'Past trip', tone: 'past' }
-  if (input.spotsLeft != null && input.spotsLeft > 0 && input.spotsLeft <= 5) {
+  if (input.spotsLeft != null && input.spotsLeft > 0 && input.spotsLeft <= 5 && (input.spotsTotal == null || seatsScarce(input.spotsTotal, input.spotsLeft))) {
     return { label: `Only ${input.spotsLeft} left`, tone: 'urgent' }
   }
   if (input.isFeatured) return { label: 'Featured', tone: 'featured' }

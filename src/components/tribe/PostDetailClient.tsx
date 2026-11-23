@@ -1,5 +1,6 @@
 'use client'
 
+import { seatLong } from '@/lib/seats'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -293,8 +294,9 @@ function Gallery({ post }: { post: Post }) {
 
 function planCaption(total: number, taken: number) {
   if (total <= 0) return null
-  if (taken >= total) return <><strong>Full · {total}/{total}</strong></>
-  return <><strong>{taken} going</strong> · {total - taken} {total - taken === 1 ? 'spot' : 'spots'} open</>
+  // The plan's own page: the group size shows here (lib/seats).
+  if (taken >= total) return <><strong>Full</strong></>
+  return <strong>{seatLong(total, total - taken)}</strong>
 }
 
 function PlanCircle({ post, ring, stamp }: { post: Post; ring: ReturnType<typeof planRing>; stamp: boolean }) {

@@ -1,5 +1,6 @@
 'use client'
 
+import { seatShort, seatsScarce } from '@/lib/seats'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -775,10 +776,10 @@ export function BookingFormClient({
                             <span>{travelRangeLabel(date)}</span>
                             <span
                               className={`text-[10px] font-medium ${
-                                soldOut ? 'text-red-400' : slots <= 3 ? 'text-yellow-400' : 'text-green-400'
+                                soldOut ? 'text-red-400' : seatsScarce(maxGroupSize, slots) ? 'text-yellow-400' : 'text-green-400'
                               }`}
                             >
-                              {soldOut ? 'Sold out' : `${slots} spots left`}
+                              {soldOut ? 'Sold out' : seatShort(maxGroupSize, slots)}
                             </span>
                           </span>
                         </button>

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { seatsScarce } from '@/lib/seats'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { isAuthorizedCron } from '@/lib/cron/auth'
 import { dispatchPendingPushes } from '@/lib/push/dispatch'
@@ -45,7 +46,7 @@ async function run(req: Request) {
     const byId = new Map(items.map((t) => [t.id, t]))
     for (const s of rows) {
       const t = byId.get(String(s.package_id))
-      if (!t?.nextDeparture || t.seatsLeft == null || t.seatsLeft <= 0 || t.seatsLeft > LOW_SEATS) continue
+      if (!t?.nextDeparture || t.seatsLeft == null || t.seatsLeft <= 0 || t.seatsLeft > LOW_SEATS || !seatsScarce(t.seatsTotal, t.seatsLeft)) continue
       if (s.alerted_low_seats_date === t.nextDeparture) continue
       await notify(svc, [String(s.user_id)], { type: 'trip_alert', title: `${t.seatsLeft === 1 ? 'Last spot' : `Only ${t.seatsLeft} spots left`}: ${t.title}`,
         body: `For ${new Date(`${t.nextDeparture}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' })}.`, link: `/packages/${t.slug}` })

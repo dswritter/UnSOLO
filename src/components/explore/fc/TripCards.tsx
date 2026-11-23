@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { isOptimizableImageUrl } from '@/lib/images/isOptimizableImageUrl'
 import { LowResUnderlay } from '@/components/ui/LowResUnderlay'
 import { MiniArc, SeatRing, segsFromCounts, spotsCenter } from '@/components/tribe/SeatRing'
+import { seatShort, seatStage } from '@/lib/seats'
 import { rupees } from '@/components/tribe/format'
 
 function dayParts(iso: string | null) {
@@ -27,9 +28,13 @@ function seatLine(t: TripLite) {
   const left = t.seatsLeft ?? n
   const k = n - left
   if (n === 0) return null
-  if (k <= 0) return <><strong>Be first in the circle</strong></>
-  if (left <= 0) return <><strong>Full</strong> · {n}/{n}</>
-  return <><strong>{k} going</strong></>
+  // The ring's centre already says "3 going" while under half booked (lib/seats).
+  switch (seatStage(n, left)) {
+    case 'open': return <><strong>Be first in the circle</strong></>
+    case 'full': return <><strong>Full</strong></>
+    case 'going': return null
+    default: return <><strong>{k} going</strong></>
+  }
 }
 
 /**
@@ -102,7 +107,7 @@ export function TripListRow({ trip: t }: { trip: TripLite }) {
       {n > 0 && <MiniArc total={n} taken={n - left} />}
       <span className="w-[76px] shrink-0 text-right">
         <span className="pc-price block text-[14.5px]">{rupees(t.priceFromPaise)}</span>
-        <span className="block text-[11px] font-semibold text-muted-foreground">{n === 0 ? '' : left <= 0 ? 'Full' : `${left} open`}</span>
+        <span className="block text-[11px] font-semibold text-muted-foreground">{n === 0 ? '' : seatShort(n, left)}</span>
       </span>
     </Link>
   )

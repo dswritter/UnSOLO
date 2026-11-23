@@ -1,5 +1,7 @@
 package com.unsolo.app.ui.components
 
+import com.unsolo.app.core.util.SeatStage
+import com.unsolo.app.core.util.SeatCopy
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -117,18 +119,20 @@ fun ringA11y(total: Int, filled: Int, plan: Boolean = false): String {
 /** The text line every ring is paired with. */
 fun ringCaption(total: Int, filled: Int): AnnotatedString = buildAnnotatedString {
     val b = SpanStyle(fontWeight = FontWeight.Bold)
-    when {
-        filled <= 0 -> { withStyle(b) { append("Be first in the circle") }; append(" · $total spots open") }
-        filled >= total -> withStyle(b) { append("Full · $total/$total") }
-        else -> { withStyle(b) { append("${total - filled} of $total open") }; append(" · $filled going") }
+    val left = (total - filled).coerceAtLeast(0)
+    // Group size only once half the spots are gone (SeatCopy).
+    when (SeatCopy.stage(total, left)) {
+        SeatStage.Open -> { withStyle(b) { append("Be first in the circle") }; append(" · ${SeatCopy.short(total, left)}") }
+        SeatStage.Full -> withStyle(b) { append("Full") }
+        SeatStage.Going -> withStyle(b) { append("$filled going") }
+        SeatStage.Filling -> { withStyle(b) { append(SeatCopy.short(total, left)) }; append(" · $filled going") }
     }
 }
 
 /** Plans: "2 going · 3 spots". */
 fun planCaption(total: Int, going: Int): AnnotatedString = buildAnnotatedString {
     val open = (total - going).coerceAtLeast(0)
-    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(if (open == 0) "Full · $total/$total" else "$going going") }
-    if (open > 0) append(" · $open spot${if (open == 1) "" else "s"}")
+    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(SeatCopy.short(total, open)) }
 }
 
 /** What a ring needs from a seat list. */
@@ -517,6 +521,9 @@ fun StoryRing(user: UserLite?, segments: Int, seen: Int, modifier: Modifier = Mo
 /** "spots left" / "spot left" / "full". */
 fun spotsWord(open: Int, full: Boolean) = when { full -> "full"; open == 1 -> "spot left"; else -> "spots left" }
 
+/** The ring's centre words for a trip or plan, as one pair ("4/12", "spots left"; "3", "going"). */
+fun spotsPair(total: Int, open: Int): Pair<String, String> = SeatCopy.center(total, open).let { (it.big + (it.of ?: "")) to it.small }
+
 /**
  * The one centre label for trip rings: a big number with a tiny "/N" beside it (0.36×, 60%),
  * and "spots left" / "spot left" / "full" under it. Sized from the disc so it always fits.
@@ -532,11 +539,13 @@ fun SpotsCount(open: Int, total: Int, full: Boolean, discDp: Float, onPhoto: Boo
             .then(if (onPhoto) Modifier.clip(RoundedCornerShape(22.dp)).background(c.raised.copy(alpha = 0.9f)).padding(horizontal = (discDp * 0.07f).coerceIn(6f, 16f).dp, vertical = (discDp * 0.04f).coerceIn(3f, 8f).dp) else Modifier),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        // "12 spots open" → "3 going" → "4/12 spots left" (SeatCopy): the total only once half booked.
+        val label = SeatCopy.center(total, if (full) 0 else open)
         Row(verticalAlignment = Alignment.Bottom) {
-            Text(if (full) "$total" else "$open", style = Pc.type.numLarge.copy(fontSize = big.sp, lineHeight = (big * 0.98f).sp), color = c.ink, maxLines = 1)
-            Text("/$total", style = Pc.type.numLarge.copy(fontSize = small.sp, lineHeight = small.sp), color = c.ink.copy(alpha = 0.6f), maxLines = 1,
-                modifier = Modifier.padding(start = 1.dp, bottom = (big * 0.12f).dp))
+            Text(label.big, style = Pc.type.numLarge.copy(fontSize = big.sp, lineHeight = (big * 0.98f).sp), color = c.ink, maxLines = 1)
+            label.of?.let { Text(it, style = Pc.type.numLarge.copy(fontSize = small.sp, lineHeight = small.sp), color = c.ink.copy(alpha = 0.6f), maxLines = 1,
+                modifier = Modifier.padding(start = 1.dp, bottom = (big * 0.12f).dp)) }
         }
-        Text(spotsWord(open, full), style = Pc.type.smallStrong.copy(fontSize = word.sp, lineHeight = (word * 1.15f).sp), color = c.ink2, maxLines = 1, softWrap = false)
+        Text(label.small, style = Pc.type.smallStrong.copy(fontSize = word.sp, lineHeight = (word * 1.15f).sp), color = c.ink2, maxLines = 1, softWrap = false)
     }
 }

@@ -1,5 +1,7 @@
 package com.unsolo.app.ui.explore
 
+import com.unsolo.app.core.util.SeatStage
+import com.unsolo.app.core.util.SeatCopy
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -584,7 +586,9 @@ fun TripCard(t: TripLite, saved: Boolean, onSave: () -> Unit, onOpen: () -> Unit
         Column(Modifier.padding(start = 6.dp, end = 6.dp, top = 8.dp, bottom = 2.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 t.host?.let { Tag(it.name, TagKind.Verified, Modifier.weight(1f, fill = false)); Spacer(Modifier.width(10.dp)) }
-                if (!t.isListing) Text(when { t.nextDeparture == null -> "Dates on request"; ring.full -> "Full"; ring.filled <= 0 -> "Be first in the circle"; else -> "${ring.filled} going" },
+                if (!t.isListing) Text(when { t.nextDeparture == null -> "Dates on request"; ring.full -> "Full"; ring.filled <= 0 -> "Be first in the circle"
+                    // Under half booked the ring's centre already says "3 going".
+                    SeatCopy.stage(ring.total, ring.total - ring.filled) == SeatStage.Going -> ""; else -> "${ring.filled} going" },
                     style = Pc.type.smallStrong.copy(fontSize = 12.sp), color = if (ring.full) c.full else c.ink2, modifier = Modifier.weight(1f), textAlign = TextAlign.End, maxLines = 1)
             }
             Spacer(Modifier.height(4.dp))
@@ -666,7 +670,7 @@ fun DepartureRow(t: TripLite, onClick: () -> Unit) {
             Column(horizontalAlignment = Alignment.End) {
                 Text(MoneyFormat.rupees(t.priceFromPaise), style = Pc.type.price, color = c.ink)
                 if (t.isListing) Text("per ${t.unit ?: "booking"}", style = Pc.type.small, color = c.ink2)
-                else if (t.nextDeparture != null) Text(if (gone) "Done" else if (ring.full) "Full" else "${ring.total - ring.taken} open", style = Pc.type.small, color = if (ring.full && !gone) c.full else c.ink2)
+                else if (t.nextDeparture != null) Text(if (gone) "Done" else SeatCopy.short(ring.total, ring.total - ring.taken), style = Pc.type.small, color = if (ring.full && !gone) c.full else c.ink2)
             }
         }
         Hairline()
@@ -683,7 +687,7 @@ fun HostedTripCard(t: TripLite, onOpen: () -> Unit, onTake: () -> Unit, label: S
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text("$label · ${Fmt.dayMonth(t.nextDeparture)}", style = Pc.type.smallStrong.copy(fontWeight = FontWeight.Bold, fontSize = 11.5.sp), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(listOfNotNull(if (t.nextDeparture == null) "Dates on request" else if (isPastDate(t.nextDeparture)) "Trip done" else t.seatsLeft?.let { if (it == 0) "Full" else "$it spot${if (it == 1) "" else "s"} left" }, MoneyFormat.rupees(t.priceFromPaise)).joinToString(" · "), style = Pc.type.small, color = c.ink2, maxLines = 1)
+            Text(listOfNotNull(if (t.nextDeparture == null) "Dates on request" else if (isPastDate(t.nextDeparture)) "Trip done" else t.seatsLeft?.let { l -> t.seatsTotal?.takeIf { it > 0 }?.let { SeatCopy.short(it, l) } }, MoneyFormat.rupees(t.priceFromPaise)).joinToString(" · "), style = Pc.type.small, color = c.ink2, maxLines = 1)
         }
         Box(Modifier.defaultMinSize(minHeight = 48.dp).clip(CircleShape).clickable(role = Role.Button, onClick = onTake).padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
             Text("Grab a spot →", style = Pc.type.smallStrong.copy(fontWeight = FontWeight.ExtraBold, fontSize = 11.5.sp), color = c.accentInk, maxLines = 1)
@@ -846,13 +850,13 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
                                 Text(when {
                                     gone -> "Trip done · ${Fmt.dayMonth(date)}"
                                     ring.full -> "Full"
-                                    else -> "$left of ${ring.total} spots left"
+                                    else -> SeatCopy.long(ring.total, left)
                                 }, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = if (ring.full && !gone) c.full else c.ink)
                                 Text(when {
                                     gone && names.isNotEmpty() -> names.take(2).joinToString(", ") + (if (ring.filled > names.take(2).size) " +${ring.filled - names.take(2).size}" else "") + " travelled"
                                     gone -> if (ring.filled > 0) "${ring.filled} travelled on this one" else "This date has passed"
                                     names.isNotEmpty() -> names.take(2).joinToString(", ") + (if (ring.filled > names.take(2).size) " +${ring.filled - names.take(2).size}" else "") + " going"
-                                    ring.filled > 0 -> "${ring.filled} going · faces show once you book"
+                                    ring.filled > 0 -> "Faces show once you book"
                                     else -> "Be the first in the circle"
                                 }, style = Pc.type.small, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
@@ -891,7 +895,7 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
                                 .clickable(role = Role.RadioButton) { vm.selectedDate.value = d.date }.padding(horizontal = 10.dp, vertical = 10.dp)) {
                                 Text(Fmt.dowUpper(d.date), style = Pc.type.code.copy(fontSize = 10.sp), color = if (sel) c.raised.copy(alpha = 0.8f) else c.ink2)
                                 Text(Fmt.dayMonth(d.date), style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = if (sel) c.raised else c.ink)
-                                Text(if (gone) "Done" else if (full) "Full" else "${d.seatsLeft} left", style = Pc.type.small, color = if (sel) c.raised.copy(alpha = 0.85f) else if (full) c.full else if (gone) c.ink3 else c.ink2)
+                                Text(if (gone) "Done" else if (full) "Full" else SeatCopy.tiny(d.seatsTotal, d.seatsLeft), maxLines = 1, style = Pc.type.small, color = if (sel) c.raised.copy(alpha = 0.85f) else if (full) c.full else if (gone) c.ink3 else c.ink2)
                             }
                         }
                     }
@@ -899,19 +903,41 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
             }
             val includes = detail?.includes.orEmpty()
             val reviews = detail?.reviews.orEmpty()
-            if (reviews.isNotEmpty()) item(key = "reviews") {
+            // Always there once the details load: summary, then the latest reviews (or an empty note).
+            if (detail != null) item(key = "reviews") {
+                val rating = detail.rating?.takeIf { it.count > 0 }
                 Column(Modifier.padding(top = 16.dp)) {
-                    SectionHeader("What travellers say", trailing = detail?.rating?.takeIf { it.count > 0 }?.let { "★ %.1f · %d".format(it.avg, it.count) })
-                    LazyRow(contentPadding = PaddingValues(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SectionHeader("Reviews", trailing = rating?.let { "${it.count} review${if (it.count == 1) "" else "s"}" })
+                    if (rating != null) Row(Modifier.padding(horizontal = Gutter).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.tonal).padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text("%.1f".format(rating.avg), style = Pc.type.numLarge.copy(fontSize = 30.sp), color = c.ink)
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(stars(rating.avg), style = Pc.type.bodyStrong, color = c.gold)
+                            Text("${rating.count} traveller${if (rating.count == 1) "" else "s"} rated this", style = Pc.type.small, color = c.ink2)
+                        }
+                        if (rating.destination != null && rating.experience != null) Column(horizontalAlignment = Alignment.End) {
+                            Text("Place %.1f".format(rating.destination), style = Pc.type.small, color = c.ink2)
+                            Text("Experience %.1f".format(rating.experience), style = Pc.type.small, color = c.ink2)
+                        }
+                    }
+                    if (reviews.isEmpty()) Text(
+                        if (rating != null) "No written reviews yet." else if (t.isListing) "No reviews yet. Guests review after their stay." else "No reviews yet. Travellers review once the trip is over.",
+                        style = Pc.type.body, color = c.ink2, modifier = Modifier.padding(horizontal = Gutter).padding(top = if (rating != null) 10.dp else 0.dp))
+                    else LazyRow(Modifier.padding(top = 10.dp), contentPadding = PaddingValues(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         items(reviews, key = { it.id }) { r ->
                             Column(Modifier.width(270.dp).raisedCard().padding(14.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                Row(Modifier.clickable(enabled = r.author.username.isNotBlank()) { nav.to(Routes.profile(r.author.username)) }, verticalAlignment = Alignment.CenterVertically) {
                                     Avatar(r.author, 28.dp); Spacer(Modifier.width(8.dp))
-                                    Text(r.author.firstName, style = Pc.type.smallStrong, color = c.ink, modifier = Modifier.weight(1f))
-                                    Text("★".repeat(r.rating.coerceIn(0, 5)), style = Pc.type.small, color = c.gold)
+                                    Column(Modifier.weight(1f)) {
+                                        Text(r.author.firstName.ifBlank { r.author.name }, style = Pc.type.smallStrong, color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        if (r.createdAt.isNotBlank()) Text(Fmt.ago(r.createdAt), style = Pc.type.label, color = c.ink3, maxLines = 1)
+                                    }
+                                    Text(stars(r.rating.toDouble()), style = Pc.type.small, color = c.gold)
                                 }
-                                r.title?.let { Text(it, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink, modifier = Modifier.padding(top = 8.dp), maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                                r.body?.let { Text(it, style = Pc.type.small, color = c.ink2, maxLines = 4, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp)) }
+                                r.title?.takeIf { it.isNotBlank() }?.let { Text(it, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink, modifier = Modifier.padding(top = 8.dp), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                                r.body?.takeIf { it.isNotBlank() }?.let { Text(it, style = Pc.type.small, color = c.ink2, maxLines = 4, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp)) }
+                                if (r.title.isNullOrBlank() && r.body.isNullOrBlank() && r.photos.isEmpty()) Text("Rated ${r.rating} out of 5", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(top = 8.dp))
                                 if (r.photos.isNotEmpty()) Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     r.photos.take(3).forEachIndexed { i, m ->
                                         ProgressiveImage(m, Modifier.size(70.dp).clip(RoundedCornerShape(10.dp)).clickable { reviewPhotos = r.photos to i })
@@ -976,7 +1002,7 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
                 t.isListing -> t.place?.name ?: "Book on UnSOLO"
                 date == null -> "Dates on request"
                 isPastDate(date) -> "${Fmt.dowDayMonth(date)} has passed · ask for the next one"
-                left > 0 -> "${Fmt.dowDayMonth(date)} · $left ${if (left == 1) "spot" else "spots"} left"
+                left > 0 -> "${Fmt.dowDayMonth(date)} · ${SeatCopy.short(dep?.seatsTotal ?: t.seatsTotal ?: ring.total, left)}"
                 else -> "${Fmt.dowDayMonth(date)} is full · pick another date"
             },
             action = if (t.isListing) "Book" else if (date == null || isPastDate(date)) "Ask for dates" else "Grab a spot", kind = BtnKind.Accent, enabled = t.isListing || date == null || isPastDate(date) || left > 0,
@@ -1072,6 +1098,9 @@ fun StoryRailCard(s: Post, onClick: () -> Unit) {
     }
 }
 
+
+/** "★★★★☆" for a 0–5 rating (rounded to the nearest star). */
+private fun stars(avg: Double): String { val k = Math.round(avg).toInt().coerceIn(0, 5); return "★".repeat(k) + "☆".repeat(5 - k) }
 
 /** Centre word under the seat count. */
 fun seatsLeftWord(open: Int, full: Boolean) = spotsWord(open, full)
