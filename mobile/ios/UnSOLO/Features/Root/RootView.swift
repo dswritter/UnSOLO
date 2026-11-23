@@ -48,7 +48,7 @@ struct RootView: View {
             StatusComposer(archiveId: item.archiveId).environment(app).environment(router).environment(session)
         }
         .sheet(item: $router.safari) { item in SafariView(url: item.url).ignoresSafeArea().presentationCornerRadius(PcTokens.radiusSheet) }
-        .sheet(isPresented: $router.authSheet, onDismiss: { if !session.isSignedIn { router.afterGate = nil } }) {
+        .sheet(isPresented: $router.authSheet, onDismiss: { router.launchSignIn = false; if !session.isSignedIn { router.afterGate = nil } }) {
             WelcomeView().environment(app).environment(router).environment(session).pcSheet()
         }
         .sheet(isPresented: $router.phoneSheet) {
@@ -65,11 +65,14 @@ struct RootView: View {
             #if DEBUG
             if DebugLaunch.startScreen != nil { return }
             #endif
-            if !session.isSignedIn && !UserDefaults.standard.bool(forKey: "welcome.seen") {
+            // Signed out on a fresh launch (not from a link or a notification): sign-in first.
+            if !session.isSignedIn {
                 Task {
                     try? await Task.sleep(for: .milliseconds(600))
-                    if !(await app.auth.isSignedIn) { router.authSheet = true }
-                    UserDefaults.standard.set(true, forKey: "welcome.seen")
+                    if !(await app.auth.isSignedIn), !router.openedFromLink, !router.authSheet {
+                        router.launchSignIn = true
+                        router.authSheet = true
+                    }
                 }
             }
         }

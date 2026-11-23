@@ -357,6 +357,7 @@ struct PostDetailView: View {
     private func commentBar(_ post: Post) -> some View {
         VStack(spacing: 4) {
             if let replyTo { replyChip(replyTo) }
+            MentionSuggestions(caption: $draft, dark: false, hint: false).frame(maxWidth: .infinity, alignment: .leading)
             HStack(spacing: 8) {
                 Avatar(user: session.user, size: 34)
                 composerField(post, placeholder: replyTo.map { "Reply to \($0.author.firstName)" } ?? (post.kind == .ask ? "Add an answer…" : "Add a comment…"))
@@ -371,10 +372,14 @@ struct PostDetailView: View {
     private func composerField(_ post: Post, placeholder: String) -> some View {
         let empty = draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         return HStack(spacing: 8) {
-            TextField(placeholder, text: $draft, axis: .vertical)
-                .font(.system(size: 14))
-                .lineLimit(1...4)
-                .focused($composerFocused)
+            HStack(spacing: 6) {
+                TextField(placeholder, text: $draft, axis: .vertical)
+                    .font(.system(size: 14))
+                    .lineLimit(1...4)
+                    .focused($composerFocused)
+                    .mentionSpaceAccept($draft, app: app)
+                MentionBestChip(text: $draft)
+            }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 11)
                 .frame(minHeight: 44)

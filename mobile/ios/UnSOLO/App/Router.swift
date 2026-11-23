@@ -127,6 +127,10 @@ final class Router {
     /// Bumped when the current tab is tapped again at its root: that tab scrolls to the top.
     var reselected: [AppTab: Int] = [:]
     var authSheet = false
+    /// This launch was opened by a link or a notification (no sign-in screen first).
+    @ObservationIgnored var openedFromLink = false
+    /// The sign-in screen was shown because the app opened signed out: signing in lands on Explore.
+    @ObservationIgnored var launchSignIn = false
     var authReason: String?
     var phoneSheet = false
     var landingPrompt: LandingTab?
@@ -159,6 +163,7 @@ final class Router {
 
     /// Opens a validated deep link.
     func open(_ link: DeepLink) {
+        openedFromLink = true
         switch link {
         case .tribe: tab = .tribe; popToRoot(.tribe)
         case .explore: tab = .explore; popToRoot(.explore)

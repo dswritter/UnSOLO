@@ -144,6 +144,19 @@ final class ParityTests: XCTestCase {
         XCTAssertTrue(StatusRepo.matches(u, "sha"), "3+ letters match anywhere")
     }
 
+    @MainActor
+    func testMentionRankingAndSpaceAccept() throws {
+        func u(_ id: String, _ username: String, _ name: String) throws -> UserLite {
+            try JSON.decoder().decode(UserLite.self, from: Data(#"{"id":"\#(id)","username":"\#(username)","name":"\#(name)","avatarUrl":null,"isPhoneVerified":true,"isIdVerified":false,"isHost":false}"#.utf8))
+        }
+        let list = [try u("1", "xnaina", "Naina Rao"), try u("2", "rohan", "Rohan Nair"), try u("3", "na", "Na Kim"), try u("4", "naveen_k", "Veen")]
+        XCTAssertEqual(StatusRepo.rank(list, "na").map(\.id), ["3", "4", "1", "2"], "exact, username prefix, name-word prefix, rest")
+        let best = list[3]
+        XCTAssertEqual(Mentions.spaceAccepted(old: "hi @nav", new: "hi @nav ", best: { _ in best }), "hi @naveen_k ")
+        XCTAssertNil(Mentions.spaceAccepted(old: "hi @naveen_k", new: "hi @naveen_k ", best: { _ in best }), "already exact")
+        XCTAssertNil(Mentions.spaceAccepted(old: "hi there", new: "hi there ", best: { _ in best }))
+    }
+
     func testPastDeparture() {
         let now = Fmt.day("2026-11-22")!
         XCTAssertTrue(Fmt.isPast("2026-11-21", now: now))

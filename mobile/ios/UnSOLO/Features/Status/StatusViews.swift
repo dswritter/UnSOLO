@@ -293,11 +293,13 @@ private struct EmojiBurst: Identifiable, Equatable {
     let start = Date()
 }
 
-/// The reaction you tapped floats up the screen: a dozen copies rising from the react button,
-/// drifting sideways, growing and fading out.
+/// The reaction you tapped: a big one pops in the middle, and nine small copies drift up from the react button,
+/// swaying, growing and fading. Positions come from the animation clock every frame. With Reduce Motion on,
+/// only the centre one shows, fading in and out.
 private struct FloatingEmojis: View {
     let bursts: [EmojiBurst]
     static let duration: Double = 1.9
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { geo in
@@ -305,17 +307,29 @@ private struct FloatingEmojis: View {
                 ZStack {
                     ForEach(bursts) { b in
                         let t = tl.date.timeIntervalSince(b.start)
-                        ForEach(0..<12, id: \.self) { k in
-                            let seed = Self.rand(b.id, k)
-                            let local = max(0, min(1, (t - seed.delay) / 1.5))
-                            if local > 0 && local < 1 {
-                                Text(b.emoji)
-                                    .font(.system(size: 24 + seed.size * 22))
-                                    .scaleEffect(0.6 + local * 0.7)
-                                    .rotationEffect(.degrees((seed.dx - 0.5) * 40 * local))
-                                    .opacity(local < 0.15 ? local / 0.15 : 1 - max(0, min(1, (local - 0.6) / 0.4)))
-                                    .position(x: geo.size.width * 0.86 - seed.dx * geo.size.width * 0.75 * local + sin(local * 9 + seed.dx * 6) * 24,
-                                              y: geo.size.height * 0.72 - local * geo.size.height * (0.55 + seed.size * 0.3))
+                        // Centre pop: springs up big, holds, fades.
+                        let p = max(0, min(1, t / 1.1))
+                        if p > 0 && p < 1 {
+                            let pop = reduceMotion ? 1 : (p < 0.25 ? 0.4 + 2.8 * p : 1.1 - 0.1 * min(1, (p - 0.25) / 0.2))
+                            Text(b.emoji).font(.system(size: 96))
+                                .scaleEffect(pop)
+                                .opacity(p < 0.1 ? p / 0.1 : 1 - max(0, (p - 0.65) / 0.35))
+                                .position(x: geo.size.width / 2, y: geo.size.height * 0.42)
+                        }
+                        if !reduceMotion {
+                            ForEach(0..<9, id: \.self) { k in
+                                let seed = Self.rand(b.id, k)
+                                let local = max(0, min(1, (t - 0.1 - seed.delay) / 1.4))
+                                if local > 0 && local < 1 {
+                                    Text(b.emoji)
+                                        .font(.system(size: 22 + seed.size * 14))
+                                        .scaleEffect(0.6 + local * 0.6)
+                                        .rotationEffect(.degrees((seed.dx - 0.5) * 40 * local))
+                                        .opacity(local < 0.12 ? local / 0.12 : 1 - max(0, min(1, (local - 0.6) / 0.4)))
+                                        // From the react button (right side, low) up and slightly left.
+                                        .position(x: geo.size.width - 40 - seed.dx * 90 * local + sin(local * 8 + seed.dx * 6) * 18,
+                                                  y: geo.size.height * 0.66 - local * geo.size.height * (0.4 + seed.size * 0.25))
+                                }
                             }
                         }
                     }
@@ -632,6 +646,7 @@ private struct StatusPlayer: View {
 
     private func commentBar(_ item: StatusItem) -> some View {
         VStack(alignment: .leading, spacing: 6) {
+            MentionSuggestions(caption: $draft, hint: false).padding(.horizontal, 6)
             if own && !typing {
                 Text("Disappears \(StatusTimeText.expiresIn(item.expiresAt)) · saved on this phone").font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.7)).padding(.leading, 6)
@@ -647,6 +662,8 @@ private struct StatusPlayer: View {
                     .submitLabel(.send)
                     .onSubmit(sendComment)
                     .onChange(of: draft) { _, v in if v.count > 500 { draft = String(v.prefix(500)) } }
+                    .mentionSpaceAccept($draft, app: app)
+                MentionBestChip(text: $draft, dark: true)
                 if !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     if sending { ProgressView().tint(.white).frame(width: 44, height: 44) }
                     else {
@@ -740,12 +757,17 @@ private struct StatusCommentsSheet: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            MentionSuggestions(caption: $text, dark: false, hint: false)
             HStack(spacing: 8) {
-                TextField("Add a comment…", text: $text, axis: .vertical)
-                    .lineLimit(1...4)
-                    .padding(.horizontal, 14).padding(.vertical, 10)
-                    .pcField()
-                    .onChange(of: text) { _, v in if v.count > 500 { text = String(v.prefix(500)) } }
+                HStack(spacing: 6) {
+                    TextField("Add a comment…", text: $text, axis: .vertical)
+                        .lineLimit(1...4)
+                        .onChange(of: text) { _, v in if v.count > 500 { text = String(v.prefix(500)) } }
+                        .mentionSpaceAccept($text, app: app)
+                    MentionBestChip(text: $text)
+                }
+                .padding(.horizontal, 14).padding(.vertical, 10)
+                .pcField()
                 Button(sending ? "Sending…" : "Send") {
                     app.requireVerified("Sign in to comment") {
                         sending = true
@@ -835,58 +857,6 @@ struct MentionText: View {
                 }
                 return .discarded
             })
-    }
-}
-
-/// People matching the @name being typed, in a row above the caption. Tapping one finishes it.
-private struct MentionSuggestions: View {
-    @Binding var caption: String
-    @Environment(AppModel.self) private var app
-    @State private var hits: [UserLite] = []
-    @State private var searching = false
-
-    var body: some View {
-        let tail = Mentions.tail(caption)
-        Group {
-            if let tail {
-                if tail.query.isEmpty {
-                    Text("Type a name or username to mention someone").font(.system(size: 12)).foregroundStyle(.white.opacity(0.7))
-                } else if hits.isEmpty {
-                    Text(searching ? "Looking for “\(tail.query)”…" : "No one called “\(tail.query)” on UnSOLO").font(.system(size: 12)).foregroundStyle(.white.opacity(0.7))
-                } else {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(hits) { u in
-                                Button { caption = String((String(caption[..<tail.start]) + "@\(u.username) ").prefix(500)) } label: {
-                                    HStack(spacing: 8) {
-                                        Avatar(user: u, size: 28)
-                                        VStack(alignment: .leading, spacing: 0) {
-                                            Text(u.name).font(.system(size: 12, weight: .bold)).foregroundStyle(.white).lineLimit(1)
-                                            Text("@\(u.username)").font(.system(size: 11)).foregroundStyle(.white.opacity(0.7)).lineLimit(1)
-                                        }
-                                    }
-                                    .padding(.leading, 4).padding(.trailing, 12).padding(.vertical, 4)
-                                    .background(Capsule().fill(Color(white: 0.07).opacity(0.8)))
-                                }
-                                .buttonStyle(.pcPress)
-                                .accessibilityLabel("Mention \(u.name)")
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        .task(id: tail?.query) {
-            app.statuses.warmPeople()
-            guard let q = tail?.query, !q.isEmpty else { hits = []; return }
-            // People we already know show at once; the server's answer fills in a moment later.
-            hits = app.statuses.peopleNow(q)
-            searching = true
-            try? await Task.sleep(for: .milliseconds(120))
-            if Task.isCancelled { return }
-            hits = await app.statuses.people(q)
-            searching = false
-        }
     }
 }
 
@@ -1207,14 +1177,20 @@ struct StatusComposer: View {
         VStack(alignment: .leading, spacing: 10) {
             MentionSuggestions(caption: $caption)
             if !shots.isEmpty {
-                TextField("", text: $caption, prompt: Text("Add a caption…").foregroundStyle(.white.opacity(0.6)), axis: .vertical)
-                    .lineLimit(1...4)
-                    .font(.system(size: 14))
-                    .foregroundStyle(.white)
+                HStack(spacing: 6) {
+                    TextField("", text: $caption, prompt: Text("Add a caption…").foregroundStyle(.white.opacity(0.6)), axis: .vertical)
+                        .lineLimit(1...4)
+                        .font(.system(size: 14))
+                        .foregroundStyle(.white)
+                        .mentionSpaceAccept($caption, app: app)
+                    MentionBestChip(text: $caption, dark: true)
+                }
                     .padding(.horizontal, 16).padding(.vertical, 12)
                     .background(RoundedRectangle(cornerRadius: 22).fill(Color(white: 0.07).opacity(0.6)))
             }
             HStack(spacing: 8) {
+                // With no photo yet the big tiles cover it; these add more once there's one.
+                if !shots.isEmpty {
                 Button(action: openCamera) {
                     Image(systemName: "camera").font(.system(size: 16, weight: .bold)).foregroundStyle(.white)
                         .frame(width: 44, height: 44).background(Circle().fill(.white.opacity(0.16)))
@@ -1227,6 +1203,7 @@ struct StatusComposer: View {
                 }
                 .accessibilityLabel("Pick photos")
                 .disabled(shots.count >= 10)
+                }
                 chip("@ Tag people", selected: false) { tagging = true }
                 let tagged = Mentions.names(caption).count
                 if tagged > 0 { Text("\(tagged) tagged").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.75)) }

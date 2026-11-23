@@ -105,6 +105,8 @@ struct WelcomeView: View {
     }
 
     private func finish() {
+        // Signed in from the launch sign-in screen: start on Explore.
+        if router.launchSignIn { router.select(.explore); router.launchSignIn = false }
         dismiss()
         router.authReason = nil
         Task {

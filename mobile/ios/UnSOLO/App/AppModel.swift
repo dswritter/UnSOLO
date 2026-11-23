@@ -237,7 +237,8 @@ final class AppModel {
         } else {
             suggestion = landingShownThisLaunch ? nil : landing.localSuggestion
         }
-        guard let suggestion else { return }
+        // Never over the sign-in screen.
+        guard let suggestion, !router.authSheet else { return }
         landingShownThisLaunch = true
         router.landingPrompt = suggestion
         await analytics.track("landing.prompt_shown", props: ["tab": suggestion.rawValue])
@@ -288,6 +289,7 @@ final class AppModel {
 
     /// Notification and push links: only same-site paths are routed; anything else opens Activity.
     func openNotificationLink(_ link: String?) {
+        router.openedFromLink = true
         if let route = DeepLink.notificationRoute(link) {
             router.open(route)
         } else {

@@ -11,8 +11,11 @@ struct ExploreMapView: View {
     @State private var loading = true
     @State private var failed = false
     @State private var selected: MapPin?
-    @State private var position: MapCameraPosition = .region(MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: 23.5, longitude: 79.0), span: MKCoordinateSpan(latitudeDelta: 26, longitudeDelta: 26)))
+    @State private var position: MapCameraPosition = .region(Self.india)
+    @State private var shownCategory: String?
+
+    static let india = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: 23.5, longitude: 79.0),
+                                          span: MKCoordinateSpan(latitudeDelta: 26, longitudeDelta: 26))
 
     private static let categories: [(String, String)] = [("all", "All"), ("trips", "Trips"), ("stays", "Stays"), ("activities", "Activities"),
                                                          ("rentals", "Rentals"), ("plans", "Plans")]
@@ -59,7 +62,18 @@ struct ExploreMapView: View {
         }
         .animation(.snappy, value: selected?.id)
         .pcNavigationBar("Map")
-        .task(id: category) { await load() }
+        .task(id: category) {
+            // Switching: clear the old pins and glide out to all of India, then in to the new places.
+            if shownCategory != nil, shownCategory != category {
+                pins = []
+                selected = nil
+                withAnimation(.easeInOut(duration: 0.65)) { position = .region(Self.india) }
+                try? await Task.sleep(for: .milliseconds(650))
+                if Task.isCancelled { return }
+            }
+            shownCategory = category
+            await load()
+        }
         // Re-fit whenever the set of places changes (the saved copy first, then the fresh one).
         .onChange(of: pins.map(\.id)) { _, _ in fit() }
     }
@@ -79,7 +93,7 @@ struct ExploreMapView: View {
     private func fit() {
         guard !pins.isEmpty else { return }
         let region = Self.fitRegion(pins)
-        withAnimation(.easeInOut(duration: 0.4)) { position = .region(region) }
+        withAnimation(.easeInOut(duration: 0.9)) { position = .region(region) }
     }
 
     private func load() async {

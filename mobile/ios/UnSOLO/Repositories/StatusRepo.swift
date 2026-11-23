@@ -23,7 +23,11 @@ struct ArchivedStatus: Codable, Hashable, Identifiable {
 @Observable
 final class StatusRepo: AppBound {
     @ObservationIgnored weak var app: AppModel?
-    var rail: [StatusAuthor] = []
+    /// The stories row, saved on the phone on every change (seen marks and reactions too) so launch shows it at once.
+    var rail: [StatusAuthor] = [] {
+        didSet { if rail != oldValue { persistRail() } }
+    }
+    @ObservationIgnored private var persistTask: Task<Void, Never>?
     var upload: StoryUpload?
     var posting = false
     var archive: [ArchivedStatus] = []
@@ -46,9 +50,16 @@ final class StatusRepo: AppBound {
 
     func refresh() async {
         guard let app, app.session.isSignedIn else { return }
-        if let r = try? await app.api.statuses() {
-            rail = r.authors
-            app.store.setEntry("statuses", r.authors, isPrivate: true)
+        if let r = try? await app.api.statuses() { rail = r.authors }
+    }
+
+    /// Coalesced: a burst of seen marks writes once.
+    private func persistRail() {
+        persistTask?.cancel()
+        persistTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard let self, !Task.isCancelled, let app = self.app else { return }
+            if self.rail.isEmpty { app.store.removeEntry("statuses") } else { app.store.setEntry("statuses", self.rail, isPrivate: true) }
         }
     }
 
